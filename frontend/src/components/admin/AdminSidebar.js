@@ -153,8 +153,34 @@ export default function AdminSidebar() {
     return false;
   };
 
-  const handleLogout = () => {
-    router.push("/admin/login");
+  const handleLogout = async (e) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
+    try {
+      // Clear client-side storage first
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      
+      // Call the logout API endpoint
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      // Force a full page reload to clear all application state
+      window.location.href = '/admin/login';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Still redirect to login even if logout API fails
+      window.location.href = '/admin/login';
+    }
   };
 
   return (

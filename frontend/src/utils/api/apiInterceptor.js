@@ -74,28 +74,70 @@ class ApiInterceptor {
    * @returns {Promise<void>}
    */
   async interceptResponse(response, originalArgs) {
-    // Handle common response scenarios
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      console.error('API Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        url: originalArgs[0],
-        error,
-      });
-      
-      // Handle specific status codes
-      if (response.status === 401) {
-        // Handle unauthorized
-        // Example: Redirect to login
-        if (typeof window !== 'undefined') {
-          window.location.href = '/admin/login';
+    try {
+      // Only try to handle error responses
+      if (!response.ok) {
+        let errorData = {};
+        const contentType = response.headers.get('content-type');
+        
+        // Only try to parse JSON if the content-type is application/json
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            errorData = await response.clone().json();
+          } catch (parseError) {
+            // If JSON parsing fails, try to get text instead
+            try {
+              const text = await response.clone().text();
+              errorData = { message: text || 'Unknown error occurred' };
+            } catch (textError) {
+              errorData = { message: 'Failed to parse error response' };
+            }
+          }
+        } else {
+          // For non-JSON responses, get the text
+          try {
+            const text = await response.clone().text();
+            errorData = { message: text || 'Unknown error occurred' };
+          } catch (textError) {
+            errorData = { message: 'Failed to parse error response' };
+          }
         }
+
+        // Create a more detailed error object
+        const errorInfo = {
+          status: response.status,
+          statusText: response.statusText,
+          url: typeof originalArgs[0] === 'string' ? originalArgs[0] : originalArgs[0]?.url || 'unknown',
+          error: errorData,
+        };
+
+        // Log the error for debugging
+        console.error('API Error:', errorInfo);
+        
+        // Handle specific status codes
+        if (response.status === 401) {
+          // Clear any existing auth data
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('token');
+            sessionStorage.removeItem('atorix_auth_token');
+            // Only redirect if not already on the login page
+            if (!window.location.pathname.includes('/admin/login')) {
+              window.location.href = '/admin/login';
+            }
+          }
+        }
+
+        // Return a rejected promise with the error info
+        return Promise.reject(errorInfo);
       }
+      
+      // For successful responses, just return the response
+      return response;
+    } catch (error) {
+      // Catch any errors in the interceptor itself
+      console.error('Error in response interceptor:', error);
+      return response; // Still return the original response
     }
-    
-    // You can add more response handling logic here
-    return response;
   }
 }
 

@@ -45,6 +45,8 @@ export function setAuthToken(token) {
 export function clearAuthToken() {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem('atorix_auth_token');
+    localStorage.removeItem('token');
+    sessionStorage.clear();
   }
 }
 
@@ -85,7 +87,23 @@ export async function login(username, password) {
 
 /**
  * Logout user
+ * @returns {Promise<void>}
  */
-export function logout() {
-  clearAuthToken();
+export async function logout() {
+  try {
+    // Call the logout API endpoint
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include', // Important for including cookies
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (error) {
+    console.error('Logout API error:', error);
+    // Continue with client-side cleanup even if API call fails
+  } finally {
+    // Clear all client-side storage
+    clearAuthToken();
+  }
 }

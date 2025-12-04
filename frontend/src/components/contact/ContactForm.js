@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Send, AlertCircle, CheckCircle } from "lucide-react";
-import { submitWeb3FormData, submitFormData } from "@/lib/api";
+import { submitFormData, submitWeb3FormData, submitDemoRequest } from "@/lib/api";
 
 export default function ContactForm() {
   const [formData, setFormData] = useState({
@@ -72,7 +72,6 @@ export default function ContactForm() {
     e.preventDefault();
 
     if (!validateForm()) {
-      // Scroll to the first error
       const firstErrorField = document.querySelector("[aria-invalid='true']");
       if (firstErrorField) {
         firstErrorField.focus();
@@ -84,20 +83,71 @@ export default function ContactForm() {
     setApiError(null);
 
     try {
-      // 1. First submit to Web3Forms for immediate email notification
-      const formattedFormData = {
-        ...formData,
-        subject: `Contact Form Submission from ${formData.name}`,
+      // Prepare the data for submission
+      const submissionData = {
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.phone.trim(),
+        company: formData.company.trim() || 'Not provided',
+        role: 'Website Visitor', // Adding a default role since it's required
+        interests: ['Website Inquiry'], // Adding default interests since it's required
+        message: formData.message.trim() || 'No message provided',
+        source: 'website-contact',
+        status: 'new',
+        metadata: {
+          formType: 'contact-form',
+          submittedAt: new Date().toISOString()
+        }
       };
-      const web3Result = await submitWeb3FormData(formattedFormData);
 
-      // 2. Then try to submit to backend for database storage
-      let backendSuccess = false;
+      // 1. Submit to Web3Forms for email notification
+      const web3Result = await submitWeb3FormData({
+        ...submissionData,
+        subject: `New Contact from ${submissionData.name}`,
+        from_name: submissionData.name,
+        reply_to: submissionData.email
+      });
+
+      // 2. Submit to our backend API for database storage
       try {
-        const backendResult = await submitFormData(formData);
-        backendSuccess = backendResult.success;
+        const demoResult = await submitDemoRequest(submissionData);
+        if (!demoResult.success) {
+          console.warn('Demo request submission warning:', demoResult.message);
+          // Continue even if demo request fails but web3forms succeeded
+        }
       } catch (backendError) {
-        console.warn(
+        console.error('Demo request submission failed:', backendError);
+        // Don't fail the whole submission if only backend fails but web3forms succeeded
+      }
+
+      if (web3Result.success) {
+        setSubmitted(true);
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          company: "",
+          message: "",
+        });
+
+        if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        setTimeout(() => {
+          setSubmitted(false);
+        }, 5000);
+      } else {
+        setApiError(web3Result.error || "Failed to submit form. Please try again or contact us directly.");
+        console.error('Form submission failed:', web3Result);
+      }
+    } catch (error) {
+      setApiError("An unexpected error occurred. Please try again later.");
+      console.error("Form submission error:", error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
           "Backend submission failed, but email was sent via Web3Forms:",
           backendError
         );
