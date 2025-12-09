@@ -605,6 +605,7 @@ export default function PopupContactForm() {
       <DialogContent
         className={`p-0 overflow-hidden border-none bg-transparent shadow-xl ${isSmallScreen ? "max-w-[85%] mx-auto" : "max-w-4xl"}`}
       >
+        <DialogTitle className="sr-only">Contact Us</DialogTitle>
         <AnimatePresence>
           {open && (
             <motion.div

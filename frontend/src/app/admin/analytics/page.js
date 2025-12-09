@@ -34,8 +34,11 @@ export default function Analytics() {
     const fetchLeads = async () => {
       try {
         setLoading(true);
-        const data = await apiRequest(API_ENDPOINTS.BUSINESS_LEADS);
-        setLeads(data || []);
+        const response = await apiRequest(API_ENDPOINTS.BUSINESS_LEADS);
+        // Handle both array and object responses
+        const leadsData = Array.isArray(response) ? response : (response?.data || []);
+        console.log('Fetched leads:', leadsData);
+        setLeads(leadsData);
       } catch (err) {
         console.error('Error fetching leads:', err);
         setError('Failed to load lead data');
@@ -50,10 +53,12 @@ export default function Analytics() {
 
   // Calculate metrics
   const metrics = useMemo(() => {
-    const totalLeads = leads.length;
-    const newLeads = leads.filter(lead => lead.status === 'new').length;
-    const contactedLeads = leads.filter(lead => lead.status === 'contacted').length;
-    const qualifiedLeads = leads.filter(lead => lead.status === 'qualified').length;
+    // Ensure leads is an array and handle potential undefined/null cases
+    const leadArray = Array.isArray(leads) ? leads : [];
+    const totalLeads = leadArray.length;
+    const newLeads = leadArray.filter(lead => lead?.status === 'new').length;
+    const contactedLeads = leadArray.filter(lead => lead?.status === 'contacted').length;
+    const qualifiedLeads = leadArray.filter(lead => lead?.status === 'qualified').length;
     
     return {
       totalLeads,

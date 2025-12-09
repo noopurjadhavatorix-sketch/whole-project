@@ -155,19 +155,34 @@ export default function Navbar() {
     },
   };
 
+  // Skip rendering on server to prevent hydration mismatch
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Don't render on server to avoid hydration issues
+  if (!isMounted) {
+    return (
+      <header
+        className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/40"
+        suppressHydrationWarning
+      />
+    );
+  }
+
   return (
     <header
-      className={`sticky top-0 z-50 w-full transition-all duration-300 ${
-        isScrolled
-          ? "bg-background/95 backdrop-blur-md border-b shadow-sm"
-          : "bg-transparent"
+      className={`sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/40 transition-all duration-300 ${
+        isScrolled ? "shadow-sm" : ""
       }`}
       suppressHydrationWarning
     >
-      <div className="container-custom">
+      <div className="container-custom" suppressHydrationWarning>
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2" suppressHydrationWarning>
             <Link
               href="/"
               className="flex items-center"
@@ -178,7 +193,7 @@ export default function Navbar() {
                 alt="Atorix IT Logo"
                 width={150}
                 height={40}
-                className={`object-contain ${theme === 'dark' ? 'bg-white rounded-lg p-1' : ''}`}
+                className={`object-contain ${theme === "dark" ? "bg-white rounded-lg p-1" : ""}`}
                 priority
                 suppressHydrationWarning
               />
@@ -186,7 +201,7 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-8" suppressHydrationWarning>
             {/* Home and About links */}
             {navLinks.slice(0, 2).map((link) => (
               <Link
@@ -197,6 +212,7 @@ export default function Navbar() {
                     ? "text-primary font-semibold"
                     : "text-foreground/80"
                 }`}
+                suppressHydrationWarning
               >
                 {link.name}
               </Link>
@@ -209,6 +225,7 @@ export default function Navbar() {
               onMouseEnter={handleServicesMouseEnter}
               onMouseLeave={handleServicesMouseLeave}
               onClick={handleDropdownClick}
+              suppressHydrationWarning
             >
               <button
                 className={`flex items-center text-sm font-medium transition-colors hover:text-primary ${
@@ -216,15 +233,16 @@ export default function Navbar() {
                     ? "text-primary font-semibold"
                     : "text-foreground/80"
                 }`}
+                suppressHydrationWarning
               >
                 <Link href="/services">Services</Link>
                 <ChevronDown className="ml-1 h-4 w-4" />
               </button>
 
               {isServicesOpen && (
-                <div className="absolute left-0 top-full pt-2 z-50">
-                  <div className="w-64 bg-popover rounded-md border shadow-md p-1.5">
-                    <div className="space-y-0.5 py-1">
+                <div className="absolute left-0 top-full pt-2 z-50" suppressHydrationWarning>
+                  <div className="w-64 bg-popover rounded-md border shadow-md p-1.5" suppressHydrationWarning>
+                    <div className="space-y-0.5 py-1" suppressHydrationWarning>
                       {servicesData.categories.map((category) => (
                         <div
                           key={category.id}
@@ -233,21 +251,23 @@ export default function Navbar() {
                             handleCategoryMouseEnter(category.id)
                           }
                           onMouseLeave={handleCategoryMouseLeave}
+                          suppressHydrationWarning
                         >
-                          <div className="flex items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                          <div className="flex items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-accent cursor-pointer" suppressHydrationWarning>
                             <span>{category.name}</span>
                             <ChevronDown className="ml-auto h-4 w-4 -rotate-90" />
                           </div>
 
                           {openCategory === category.id && (
-                            <div className="absolute top-0 left-full pl-1.5">
-                              <div className="w-64 bg-popover rounded-md border shadow-md p-1.5">
-                                <div className="space-y-0.5 py-1">
+                            <div className="absolute top-0 left-full pl-1.5" suppressHydrationWarning>
+                              <div className="w-64 bg-popover rounded-md border shadow-md p-1.5" suppressHydrationWarning>
+                                <div className="space-y-0.5 py-1" suppressHydrationWarning>
                                   {category.services.map((service) => (
                                     <Link
                                       key={service.id}
                                       href={`/services/${category.id}/${service.id}`}
                                       className="block px-2 py-1.5 text-sm rounded-sm hover:bg-accent"
+                                      suppressHydrationWarning
                                     >
                                       {service.name}
                                     </Link>
@@ -260,11 +280,12 @@ export default function Navbar() {
                       ))}
                     </div>
 
-                    <div className="border-t my-1"></div>
+                    <div className="border-t my-1" suppressHydrationWarning></div>
 
                     <Link
                       href="/services"
                       className="block px-2 py-1.5 text-sm rounded-sm hover:bg-accent font-medium text-primary"
+                      suppressHydrationWarning
                     >
                       View All Services
                     </Link>
@@ -284,6 +305,7 @@ export default function Navbar() {
                     ? "text-primary font-semibold"
                     : "text-foreground/80"
                 }`}
+                suppressHydrationWarning
               >
                 {link.name}
               </Link>
@@ -291,20 +313,21 @@ export default function Navbar() {
           </nav>
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
-            <ThemeToggle />
+          <div className="flex items-center space-x-4" suppressHydrationWarning>
+            <ThemeToggle suppressHydrationWarning />
 
             {/* Contact/Demo Button - Hidden on mobile */}
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} suppressHydrationWarning>
               <Button
                 asChild
                 className="gap-2 px-4 py-5 text-sm font-medium bg-gradient-hero shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 relative overflow-hidden group btn-3d"
+                suppressHydrationWarning
               >
-                <Link href="/get-demo">
+                <Link href="/get-demo" suppressHydrationWarning>
                   {/* Glow effect */}
-                  <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-primary/0 via-white/30 to-primary/0 -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000"></span>
+                  <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-primary/0 via-white/30 to-primary/0 -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000" suppressHydrationWarning></span>
 
-                  <span className="relative z-10 flex items-center">
+                  <span className="relative z-10 flex items-center" suppressHydrationWarning>
                     Get Demo
                     <motion.div
                       whileHover={{ x: 5 }}
@@ -313,6 +336,7 @@ export default function Navbar() {
                         stiffness: 400,
                         damping: 10,
                       }}
+                      suppressHydrationWarning
                     ></motion.div>
                   </span>
                 </Link>
@@ -320,29 +344,34 @@ export default function Navbar() {
             </motion.div>
 
             {/* Mobile Menu */}
-            <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
-              <SheetTrigger asChild className="md:hidden">
-                <Button variant="ghost" size="icon" aria-label="Menu">
-                  <Menu className="h-5 w-5" />
+            <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange} suppressHydrationWarning>
+              <SheetTrigger asChild className="md:hidden" suppressHydrationWarning>
+                <Button variant="ghost" size="icon" aria-label="Menu" suppressHydrationWarning>
+                  <Menu className="h-5 w-5" suppressHydrationWarning />
                 </Button>
               </SheetTrigger>
               <SheetContent
                 side="right"
                 className="w-[300px] sm:w-[400px] overflow-y-auto max-h-screen p-0"
+                suppressHydrationWarning
               >
-                <div className="flex flex-col h-full py-6 px-6">
-                  <div className="flex items-center justify-between mb-8">
-                    <Image
-                      src="/AtorixIT.png"
-                      alt="Atorix IT Logo"
-                      width={120}
-                      height={30}
-                      className="object-contain"
-                    />
-                    <SheetClose ref={sheetCloseRef} className="hidden" />
+                <div className="flex flex-col h-full py-6 px-6" suppressHydrationWarning>
+                  <div className="flex items-center justify-between mb-8" suppressHydrationWarning>
+                    <div suppressHydrationWarning>
+                      <Image
+                        src="/AtorixIT.png"
+                        alt="Atorix IT Logo"
+                        width={180}
+                        height={50}
+                        className="object-contain"
+                        priority
+                        suppressHydrationWarning
+                      />
+                    </div>
+                    <SheetClose ref={sheetCloseRef} className="hidden" suppressHydrationWarning />
                   </div>
 
-                  <nav className="flex flex-col space-y-6 mb-auto">
+                  <nav className="flex flex-col space-y-6 mb-auto" suppressHydrationWarning>
                     {/* Home and About links */}
                     {navLinks.slice(0, 2).map((link) => (
                       <Link

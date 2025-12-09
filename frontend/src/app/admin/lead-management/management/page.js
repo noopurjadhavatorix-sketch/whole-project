@@ -35,12 +35,17 @@ export default function BusinessManagement() {
     qualifiedCount: 0
   });
 
-  // Toggle all leads selection
+  // Toggle all leads selection with null check
   const toggleSelectAll = () => {
+    if (!Array.isArray(leads)) {
+      setSelectedLeads([]);
+      return;
+    }
+    
     if (selectedLeads.length === leads.length) {
       setSelectedLeads([]);
     } else {
-      setSelectedLeads([...leads]);
+      setSelectedLeads(leads.filter(lead => !!lead)); // Filter out any null/undefined leads
     }
   };
 
@@ -76,13 +81,14 @@ export default function BusinessManagement() {
       
       console.log('API Response:', result); 
       
-      if (result && result.success && Array.isArray(result.data)) {
-        setLeads(result.data);
-      } else {
-        console.error('Unexpected response format:', result);
-        setLeads([]);
-      }
-      return result;
+      // Handle both array and object responses
+      const leadsData = Array.isArray(result) 
+        ? result 
+        : (result?.data || []);
+      
+      console.log('Processed leads data:', leadsData);
+      setLeads(leadsData);
+      return leadsData;
     } catch (err) {
       console.error('Error in fetchDemoRequests:', err);
       setError(err.message || 'Failed to load demo requests. Please try again later.');
@@ -159,18 +165,25 @@ export default function BusinessManagement() {
     });
   };
 
-  // Search filter with null check
-  const filteredLeads = Array.isArray(leads) ? leads.filter((lead) => {
+  // Search filter with null check and safe property access
+  const filteredLeads = (Array.isArray(leads) ? leads : []).filter((lead) => {
     if (!lead) return false;
+    
     const term = searchTerm.toLowerCase();
+    const name = lead.name || '';
+    const email = lead.email || '';
+    const company = lead.company || '';
+    const phone = lead.phone ? lead.phone.toString() : '';
+    const role = lead.role || '';
+    
     return (
-      (lead.name && lead.name.toLowerCase().includes(term)) ||
-      (lead.email && lead.email.toLowerCase().includes(term)) ||
-      (lead.company && lead.company.toLowerCase().includes(term)) ||
-      (lead.phone && lead.phone.toString().includes(searchTerm)) ||
-      (lead.role && lead.role.toLowerCase().includes(term))
+      name.toLowerCase().includes(term) ||
+      email.toLowerCase().includes(term) ||
+      company.toLowerCase().includes(term) ||
+      phone.toLowerCase().includes(term) ||
+      role.toLowerCase().includes(term)
     );
-  }) : [];
+  });
 
   // Normalize backend data to UI shape
   const businessLeads = filteredLeads.map((lead) => {

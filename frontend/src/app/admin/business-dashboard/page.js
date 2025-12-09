@@ -1,324 +1,348 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, Target, Building, Users, Calendar, Briefcase, Search, Filter, Download, ArrowUpRight, ArrowDownRight, Globe, BarChart3, PieChart, Plus } from "lucide-react";
-import ProtectedRoute from "@/components/admin/ProtectedRoute";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { isAuthenticated } from "@/lib/auth";
 import AdminLayout from "@/components/admin/AdminLayout";
-import BusinessLeadsTable from "@/components/admin/BusinessLeadsTable";
+import RoleBasedRoute from "@/components/admin/RoleBasedRoute";
+import RecentLeads from "@/components/admin/RecentLeads";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+import { DollarSign, ArrowUpRight, ArrowDownRight, Briefcase, TrendingUp, Users, MessageSquare, RefreshCw, Plus, Mail, FileText, BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-export default function BusinessDashboard() {
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // Mock data for demonstration
-  const businessStats = {
-    totalRevenue: "$2.4M",
-    monthlyGrowth: "+18.5%",
-    activeClients: 124,
-    newClients: 15,
-    conversionRate: "24.5%",
-    avgDealSize: "$45K"
+// Status badge component
+const StatusBadge = ({ status }) => {
+  const statusConfig = {
+    new: {
+      label: "New",
+      color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    },
+    contacted: {
+      label: "Contacted",
+      color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+    },
+    qualified: {
+      label: "Qualified",
+      color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    },
   };
 
-  const revenueData = [
-    { month: "Jan", revenue: "$180K", growth: "+12%" },
-    { month: "Feb", revenue: "$195K", growth: "+8%" },
-    { month: "Dec", revenue: "$220K", growth: "+13%" }
-  ];
-
-  const topPerformers = [
-    {
-      name: "TechCorp Solutions",
-      revenue: "$450K",
-      status: "active",
-      growth: "+25%"
-    },
-    {
-      name: "Global Finance Inc",
-      revenue: "$380K",
-      status: "active",
-      growth: "+18%"
-    },
-    {
-      name: "Healthcare Plus",
-      revenue: "$320K",
-      status: "pending",
-      growth: "+15%"
-    }
-  ];
-
-  const upcomingDeals = [
-    {
-      company: "Retail Dynamics",
-      value: "$120K",
-      closingDate: "2024-01-25",
-      probability: "85%"
-    },
-    {
-      company: "Innovation Labs",
-      value: "$85K",
-      closingDate: "2024-01-28",
-      probability: "70%"
-    }
-  ];
+  const config = statusConfig[status] || statusConfig.new;
 
   return (
-    <ProtectedRoute>
-      <AdminLayout 
-        title="Business Dashboard" 
-        description="Track revenue, clients, deals, and business performance metrics."
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}
+    >
+      {config.label}
+    </span>
+  );
+};
+
+// Metric Card Component
+const MetricCard = ({ title, value, icon: Icon, trend, percentage, color }) => {
+  const trendColor = trend === 'up' ? 'text-green-500' : 'text-red-500';
+  const trendIcon = trend === 'up' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            {title}
+          </p>
+          <div className="flex items-baseline mt-1">
+            <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+              {value}
+            </p>
+            {percentage && (
+              <span className={`ml-2 text-sm font-medium flex items-center ${trendColor}`}>
+                {trendIcon} {percentage}%
+              </span>
+            )}
+          </div>
+        </div>
+        <div className={`p-3 rounded-full ${color} bg-opacity-20`}>
+          <Icon className="w-6 h-6" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function BusinessDashboard() {
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [stats, setStats] = useState({
+    totalLeads: 0,
+    newLeads: 0,
+    contactedLeads: 0,
+    qualifiedLeads: 0,
+  });
+
+  // Mock data for metrics
+  const metrics = [
+    {
+      title: "Total Revenue",
+      value: "$45,231",
+      icon: DollarSign,
+      trend: 'up',
+      percentage: '12.5',
+      color: 'text-green-500'
+    },
+    {
+      title: "Active Projects",
+      value: "12",
+      icon: Briefcase,
+      trend: 'up',
+      percentage: '5.2',
+      color: 'text-blue-500'
+    },
+    {
+      title: "Conversion Rate",
+      value: "3.2%",
+      icon: TrendingUp,
+      trend: 'down',
+      percentage: '1.1',
+      color: 'text-purple-500'
+    },
+    {
+      title: "Active Users",
+      value: "1,234",
+      icon: Users,
+      trend: 'up',
+      percentage: '8.7',
+      color: 'text-yellow-500'
+    }
+  ];
+
+  // Mock activities
+  const activities = [
+    {
+      icon: Users,
+      title: "New lead added",
+      description: "John Doe from Acme Inc. requested a demo",
+      time: "5 min ago"
+    },
+    {
+      icon: Briefcase,
+      title: "Project completed",
+      description: "E-commerce website for RetailPro",
+      time: "2 hours ago"
+    },
+    {
+      icon: MessageSquare,
+      title: "New message",
+      description: "You have 3 unread messages",
+      time: "1 day ago"
+    }
+  ];
+
+  // Fetch leads from the API
+  const fetchLeads = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:5001/api/demo-requests", {
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to fetch business leads");
+      }
+
+      const data = await response.json();
+      const leadsArray = data?.data || [];
+
+      // Process leads to match the expected format
+      const processedLeads = leadsArray.map(lead => ({
+        ...lead,
+        id: lead._id,
+        company: lead.company || "N/A",
+        contact: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        interests: lead.interests || ["Not specified"],
+        status: lead.status || "new",
+        priority: "medium",
+        source: lead.source || "demo_request"
+      }));
+
+      setLeads(processedLeads);
+
+      // Calculate stats
+      const totalLeads = processedLeads.length;
+      const newLeads = processedLeads.filter(lead => lead.status === "new" || !lead.status).length;
+      const contactedLeads = processedLeads.filter(lead => lead.status === "contacted").length;
+      const qualifiedLeads = processedLeads.filter(lead => lead.status === "qualified").length;
+
+      setStats({
+        totalLeads,
+        newLeads,
+        contactedLeads,
+        qualifiedLeads,
+      });
+
+    } catch (error) {
+      console.error("Error fetching business leads:", error);
+      toast.error(error.message || "Error fetching business leads");
+      setLeads([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Handle search input change
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchLeads();
+  };
+
+  // Fetch leads on component mount
+  useEffect(() => {
+    fetchLeads();
+    // Set up polling every 5 minutes
+    const interval = setInterval(fetchLeads, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchLeads]);
+
+  return (
+    <RoleBasedRoute>
+      <AdminLayout
+        title="Business Dashboard"
+        description="Overview of your business performance"
       >
-        {/* Business Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl p-6 text-white">
-            <div className="flex items-center justify-between mb-2">
-              <DollarSign className="w-8 h-8" />
-              <span className="text-2xl font-bold">{businessStats.totalRevenue}</span>
-            </div>
-            <p className="text-emerald-100">Total Revenue</p>
-            <div className="flex items-center gap-1 mt-2">
-              <ArrowUpRight className="w-4 h-4" />
-              <span className="text-xs">{businessStats.monthlyGrowth}</span>
-            </div>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Business Dashboard
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Welcome back! Here's what's happening with your business today.
+            </p>
           </div>
-          
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
-            <div className="flex items-center justify-between mb-2">
-              <Building className="w-8 h-8" />
-              <span className="text-2xl font-bold">{businessStats.activeClients}</span>
-            </div>
-            <p className="text-blue-100">Active Clients</p>
-            <div className="flex items-center gap-1 mt-2">
-              <ArrowUpRight className="w-4 h-4" />
-              <span className="text-xs">+{businessStats.newClients} this month</span>
-            </div>
+          <div className="flex gap-2 w-full md:w-auto">
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              disabled={loading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
-          
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
-            <div className="flex items-center justify-between mb-2">
-              <Target className="w-8 h-8" />
-              <span className="text-2xl font-bold">{businessStats.conversionRate}</span>
-            </div>
-            <p className="text-purple-100">Conversion Rate</p>
-            <div className="flex items-center gap-1 mt-2">
-              <ArrowUpRight className="w-4 h-4" />
-              <span className="text-xs">+3.2% improvement</span>
-            </div>
+        </div>
+
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {metrics.map((metric, index) => (
+            <MetricCard
+              key={index}
+              title={metric.title}
+              value={metric.value}
+              icon={metric.icon}
+              trend={metric.trend}
+              percentage={metric.percentage}
+              color={metric.color}
+            />
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Recent Leads */}
+          <div className="col-span-2">
+            <RecentLeads />
           </div>
-          
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
-            <div className="flex items-center justify-between mb-2">
-              <Briefcase className="w-8 h-8" />
-              <span className="text-2xl font-bold">{businessStats.avgDealSize}</span>
-            </div>
-            <p className="text-orange-100">Average Deal Size</p>
-            <div className="flex items-center gap-1 mt-2">
-              <ArrowUpRight className="w-4 h-4" />
-              <span className="text-xs">+12% growth</span>
+
+          {/* Recent Activity */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Recent Activity
+              </h2>
+              <div className="space-y-4">
+                {activities.map((activity, index) => (
+                  <div key={index} className="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                    <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-500 dark:text-blue-300">
+                      <activity.icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {activity.title}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {activity.description}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                      {activity.time}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button className="flex items-center gap-2 justify-center">
-              <Building className="w-4 h-4" />
-              Add New Client
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2 justify-center">
-              <Briefcase className="w-4 h-4" />
-              Create Deal
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2 justify-center">
-              <BarChart3 className="w-4 h-4" />
-              Generate Report
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenue Trend */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-600" />
-                Revenue Trend
-              </h3>
-              <Button variant="ghost" size="sm">
-                View All
-              </Button>
-            </div>
-            <div className="space-y-4">
-              {revenueData.map((data, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white font-semibold">
-                      {data.month.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{data.month}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Monthly Revenue</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{data.revenue}</p>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                      {data.growth}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Top Performing Clients */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Building className="w-5 h-5 text-blue-600" />
-                Top Performers
-              </h3>
-              <Button variant="ghost" size="sm">
-                View All
-              </Button>
-            </div>
-            <div className="space-y-4">
-              {topPerformers.map((client, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-semibold">
-                      {client.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{client.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          client.status === 'active' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                        }`}>
-                          {client.status}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{client.revenue}</p>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                      {client.growth}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Business Leads Section */}
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Business Leads</h2>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex items-center gap-2">
-                <Download className="h-4 w-4" />
-                <span>Export</span>
-              </Button>
-              <Button size="sm" className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                <span>Add Lead</span>
-              </Button>
-            </div>
-          </div>
-          <div className="bg-white shadow overflow-hidden rounded-lg">
-            <BusinessLeadsTable />
-          </div>
-        </div>
-
-        {/* Upcoming Deals */}
-        <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Target className="w-5 h-5 text-purple-600" />
-              Upcoming Deals
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              Quick Actions
             </h3>
-            <Button variant="ghost" size="sm">
-              View Pipeline
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {upcomingDeals.map((deal, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white font-semibold">
-                    {deal.company.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{deal.company}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Closing {deal.closingDate}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{deal.value}</p>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">{deal.probability} probability</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Business Metrics */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Market Reach</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">15 Countries</p>
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              +3 new markets this quarter
+            <div className="space-y-2">
+              <Button className="w-full justify-start" variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Add New Lead
+              </Button>
+              <Button className="w-full justify-start" variant="outline">
+                <Mail className="w-4 h-4 mr-2" />
+                Send Email Campaign
+              </Button>
+              <Button className="w-full justify-start" variant="outline">
+                <FileText className="w-4 h-4 mr-2" />
+                Generate Report
+              </Button>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                <PieChart className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Market Share</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">12.5%</p>
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              +2.3% increase YoY
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Team Size</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">156</p>
+          {/* Performance Overview */}
+          <div className="md:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                Performance Overview
+              </h3>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="text-xs">
+                  This Month
+                </Button>
+                <Button variant="ghost" size="sm" className="text-xs">
+                  This Year
+                </Button>
               </div>
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              +12 new hires this month
+            <div className="h-64 flex items-center justify-center bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div className="text-center">
+                <BarChart3 className="w-10 h-10 mx-auto text-gray-400 mb-2" />
+                <p className="text-gray-500 dark:text-gray-400">
+                  Performance chart will be displayed here
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </AdminLayout>
-    </ProtectedRoute>
+    </RoleBasedRoute>
   );
 }

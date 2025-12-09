@@ -2,22 +2,48 @@
  * Authentication utilities for dashboard access
  */
 
-import { apiRequest, API_ENDPOINTS } from './api';
+import { apiRequest, API_ENDPOINTS, getApiUrl } from './api';
 
 /**
  * Check if credentials are valid by calling the API
- * @param {string} username - The username/email to check
+ * @param {string} username - The username to check
  * @param {string} password - The password to check
- * @returns {Promise<{success: boolean, token?: string, message?: string}>} - Authentication result
+ * @returns {Promise<{success: boolean, token?: string, user?: object, message?: string}>} - Authentication result
  */
 export async function validateCredentials(username, password) {
   try {
-    const response = await apiRequest(API_ENDPOINTS.LOGIN, {
+    const response = await fetch(getApiUrl(API_ENDPOINTS.LOGIN), {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include', // Important for cookies/sessions
       body: JSON.stringify({ username, password }),
     });
 
-    return response;
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Authentication failed');
+    }
+
+    if (data && data.success) {
+      // Store the token in sessionStorage
+      if (data.token) {
+        setAuthToken(data.token, data.user);
+      }
+      
+      return {
+        success: true,
+        token: data.token,
+        user: data.user || { username }
+      };
+    }
+
+    return {
+      success: false,
+      message: data?.message || 'Authentication failed. Please check your credentials.'
+    };
   } catch (error) {
     console.error('Authentication error:', error);
     return {
@@ -28,25 +54,40 @@ export async function validateCredentials(username, password) {
 }
 
 /**
- * Store authentication token in sessionStorage
- * @param {string} token - The authentication token
+ * Store authentication token and user data in sessionStorage
+ * @param {string} token - The JWT token
+ * @param {object} user - The user data
  */
-export function setAuthToken(token) {
+export function setAuthToken(token, user = null) {
   if (typeof window !== 'undefined') {
     sessionStorage.setItem('atorix_auth_token', token);
-    return token;
+    if (user) {
+      sessionStorage.setItem('atorix_user', JSON.stringify(user));
+    }
+  }
+  return token;
+}
+
+/**
+ * Get the current user data
+ * @returns {object|null} The user data or null if not authenticated
+ */
+export function getCurrentUser() {
+  if (typeof window !== 'undefined') {
+    const user = sessionStorage.getItem('atorix_user');
+    return user ? JSON.parse(user) : null;
   }
   return null;
 }
 
 /**
- * Remove authentication token from sessionStorage
+ * Remove authentication token and user data from sessionStorage
  */
 export function clearAuthToken() {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem('atorix_auth_token');
+    sessionStorage.removeItem('atorix_user');
     localStorage.removeItem('token');
-    sessionStorage.clear();
   }
 }
 
@@ -55,34 +96,51 @@ export function clearAuthToken() {
  * @returns {boolean} - Whether the user is authenticated
  */
 export function isAuthenticated() {
-  if (typeof window !== 'undefined') {
-    const token = sessionStorage.getItem('atorix_auth_token');
-    return !!token;
-  }
-  return false;
+  if (typeof window === 'undefined') return false;
+  
+  const token = sessionStorage.getItem('atorix_auth_token');
+  if (!token) return false;
+
+  // Optional: Add token expiration check here if needed
+  // const decoded = jwtDecode(token);
+  // if (decoded.exp * 1000 < Date.now()) {
+  //   clearAuthToken();
+  //   return false;
+  // }
+
+  return true;
 }
 
 /**
  * Login user
- * @param {string} username - The username/email
+ * @param {string} username - The username
  * @param {string} password - The password
- * @returns {Promise<{success: boolean, message?: string}>} - Result object with success and message
+ * @returns {Promise<{success: boolean, message?: string, token?: string, user?: object}>} - Result object with success and message
  */
 export async function login(username, password) {
-  const result = await validateCredentials(username, password);
+  try {
+    const result = await validateCredentials(username, password);
 
-  if (result.success && result.token) {
-    setAuthToken(result.token);
+    if (result.success && result.token) {
+      setAuthToken(result.token, result.user);
+      return {
+        success: true,
+        token: result.token,
+        user: result.user
+      };
+    }
+
     return {
-      success: true,
-      token: result.token
+      success: false,
+      message: result.message || 'Invalid username or password'
+    };
+  } catch (error) {
+    console.error('Login error:', error);
+    return {
+      success: false,
+      message: error.message || 'An error occurred during login'
     };
   }
-
-  return {
-    success: false,
-    message: result.message || 'Invalid username or password'
-  };
 }
 
 /**

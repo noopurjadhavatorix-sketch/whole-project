@@ -32,6 +32,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     if (!formData.username.trim() || !formData.password) {
       setError("Please enter both username and password");
@@ -41,11 +42,21 @@ export default function LoginPage() {
 
     try {
       const result = await login(formData.username, formData.password);
-
+      console.log('Login result:', result); // Debug log
+      
       if (result.success) {
-        router.push("/admin/dashboard");
+        // Store the token in sessionStorage
+        if (result.token) {
+          sessionStorage.setItem('atorix_auth_token', result.token);
+          if (result.user) {
+            sessionStorage.setItem('atorix_user', JSON.stringify(result.user));
+          }
+        }
+        
+        // Force a full page reload to ensure all auth state is properly set
+        window.location.href = "/admin/dashboard";
       } else {
-        setError(result.message);
+        setError(result.message || "Login failed. Please check your credentials and try again.");
       }
     } catch (error) {
       console.error("Login error:", error);

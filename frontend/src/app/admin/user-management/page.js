@@ -26,8 +26,12 @@ export default function UserManagement() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [apiError, setApiError] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
 
-  const [newUser, setNewUser] = useState({
+  const [userForm, setUserForm] = useState({
     name: "",
     email: "",
     password: "",
@@ -44,26 +48,44 @@ export default function UserManagement() {
     const fetchUsers = async () => {
       try {
         setLoadingUsers(true);
-        const res = await fetch(`${API_BASE_URL}/api/users`);
-        const json = await res.json();
+        console.log('Fetching users from:', `${API_BASE_URL}/api/users`);
+        const res = await fetch(`${API_BASE_URL}/api/users`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include' // Include cookies for authentication
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+        }
+        
+        const usersData = await res.json();
+        console.log('Users API Response:', usersData);
 
-        if (!res.ok || !json.success) {
-          console.error("Failed to fetch users:", json.message);
-          return;
+        // The backend returns an array of users directly
+        if (!Array.isArray(usersData)) {
+          throw new Error('Invalid users data format received from server');
         }
 
-        const mapped = json.data.map(u => ({
-          id: u._id,
-          name: u.name,
-          email: u.email,
-          role: u.role,
-          location: u.location,
-          color: u.color || "#3B82F6",
+        const mapped = usersData.map(user => ({
+          id: user._id || user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          location: user.location || '',
+          color: user.color || "#3B82F6",
+          isActive: user.isActive !== undefined ? user.isActive : true
         }));
 
+        console.log('Mapped users:', mapped);
         setUsers(mapped);
       } catch (err) {
         console.error("Error loading users:", err);
+        setApiError(`Failed to load users: ${err.message}`);
       } finally {
         setLoadingUsers(false);
       }
@@ -82,25 +104,52 @@ export default function UserManagement() {
     );
   });
 
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setUserForm({
+      name: user.name,
+      email: user.email,
+      password: '',
+      confirmPassword: '',
+      role: user.role,
+      location: user.location || '',
+      color: user.color || "#3B82F6",
+    });
+    setShowAddUserModal(true);
+  };
+
   const handleCreateUser = async () => {
     setApiError(null);
     const validationErrors = {};
 
-    if (!newUser.name.trim()) validationErrors.name = "Name is required";
-    if (!newUser.email.trim()) {
+    if (!userForm.name.trim()) validationErrors.name = "Name is required";
+    if (!userForm.email.trim()) {
       validationErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(newUser.email)) {
+    } else if (!/\S+@\S+\.\S+/.test(userForm.email)) {
       validationErrors.email = "Email is invalid";
     }
-    if (!newUser.password) {
-      validationErrors.password = "Password is required";
-    } else if (newUser.password.length < 6) {
-      validationErrors.password = "Password must be at least 6 characters";
+    
+    // Only validate password if creating a new user or changing password
+    if (!editingUser) {
+      if (!userForm.password) {
+        validationErrors.password = "Password is required";
+      } else if (userForm.password.length < 6) {
+        validationErrors.password = "Password must be at least 6 characters";
+      }
+      if (userForm.password !== userForm.confirmPassword) {
+        validationErrors.confirmPassword = "Passwords do not match";
+      }
+    } else if (userForm.password && userForm.password.length > 0) {
+      // If editing and password is provided, validate it
+      if (userForm.password.length < 6) {
+        validationErrors.password = "Password must be at least 6 characters";
+      }
+      if (userForm.password !== userForm.confirmPassword) {
+        validationErrors.confirmPassword = "Passwords do not match";
+      }
     }
-    if (newUser.password !== newUser.confirmPassword) {
-      validationErrors.confirmPassword = "Passwords do not match";
-    }
-    if (!newUser.role) {
+    
+    if (!userForm.role) {
       validationErrors.role = "Role is required";
     }
 
@@ -112,42 +161,105 @@ export default function UserManagement() {
     try {
       setCreatingUser(true);
 
-      const res = await fetch(`${API_BASE_URL}/api/users`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newUser.name,
-          email: newUser.email,
-          password: newUser.password,
-          role: newUser.role,
-          location: newUser.location,
-          color: newUser.color,
-        }),
+      console.log('Sending user creation request:', {
+        url: editingUser ? `${API_BASE_URL}/api/users/${editingUser.id}` : `${API_BASE_URL}/api/users`,
+        method: editingUser ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: {
+          name: userForm.name,
+          email: userForm.email,
+          password: userForm.password ? '***' : '',
+          role: userForm.role,
+          location: userForm.location,
+          color: userForm.color,
+        },
+      });
+
+      const isEditing = !!editingUser;
+      const url = isEditing 
+        ? `${API_BASE_URL}/api/users/${editingUser.id}`
+        : `${API_BASE_URL}/api/users`;
+        
+      const userData = {
+        name: userForm.name,
+        email: userForm.email,
+        role: userForm.role,
+        location: userForm.location,
+        color: userForm.color,
+      };
+      
+      // Only include password if it's being changed
+      if (userForm.password) {
+        userData.password = userForm.password;
+      }
+
+      const res = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(userData),
       });
 
       const data = await res.json();
+      console.log('User creation response:', { status: res.status, data });
 
-      if (!res.ok || !data.success) {
-        setApiError(data.message || "Failed to create user");
+      if (!res.ok) {
+        // Handle validation errors
+        if (res.status === 400 && data.errors) {
+          const fieldErrors = {};
+          Object.entries(data.errors).forEach(([field, message]) => {
+            fieldErrors[field] = message;
+          });
+          setErrors(fieldErrors);
+          setApiError('Please correct the errors below');
+        } else if (res.status === 400 && data.missingFields) {
+          const fieldErrors = {};
+          data.missingFields.forEach(field => {
+            fieldErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+          });
+          setErrors(fieldErrors);
+          setApiError(data.message || 'Please fill in all required fields');
+        } else {
+          setApiError(data.message || `Failed to create user (${res.status})`);
+        }
         return;
       }
 
-      const created = data.data;
-
-      setUsers(prev => [
-        ...prev,
-        {
-          id: created._id,
-          name: created.name,
-          email: created.email,
-          role: created.role,
-          location: created.location,
-          color: created.color || "#3B82F6",
-        },
-      ]);
+      const userResponse = data.data || data; // Handle both formats
+      
+      if (editingUser) {
+        // Update existing user in the list
+        setUsers(prev => prev.map(u => 
+          u.id === editingUser.id ? {
+            ...u,
+            name: userResponse.name,
+            email: userResponse.email,
+            role: userResponse.role,
+            location: userResponse.location || '',
+            color: userResponse.color || "#3B82F6",
+          } : u
+        ));
+      } else {
+        // Add new user to the list
+        setUsers(prev => [
+          ...prev,
+          {
+            id: userResponse._id || userResponse.id,
+            name: userResponse.name,
+            email: userResponse.email,
+            role: userResponse.role,
+            location: userResponse.location || '',
+            color: userResponse.color || "#3B82F6",
+          },
+        ]);
+      }
 
       setShowAddUserModal(false);
-      setNewUser({
+      setEditingUser(null);
+      setUserForm({
         name: "",
         email: "",
         password: "",
@@ -269,10 +381,21 @@ export default function UserManagement() {
                           {user.location || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4">
+                          <button 
+                            onClick={() => handleEditUser(user)}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+                            title="Edit User"
+                          >
                             <Edit className="w-4 h-4 inline-block" />
                           </button>
-                          <button className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
+                          <button 
+                            onClick={() => {
+                              setUserToDelete(user);
+                              setShowDeleteModal(true);
+                            }}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            title="Delete User"
+                          >
                             <Trash2 className="w-4 h-4 inline-block" />
                           </button>
                         </td>
@@ -291,17 +414,27 @@ export default function UserManagement() {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
               <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Add New User
+                  {editingUser ? 'Edit User' : 'Add New User'}
                 </h2>
                 <button
                   onClick={() => {
                     setShowAddUserModal(false);
                     setApiError(null);
                     setErrors({});
+                    setEditingUser(null);
+                    setUserForm({
+                      name: "",
+                      email: "",
+                      password: "",
+                      confirmPassword: "",
+                      role: USER_ROLES.SUPER_ADMIN,
+                      location: "",
+                      color: "#3B82F6",
+                    });
                   }}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="h-6 w-6" />
                 </button>
               </div>
 
@@ -313,9 +446,9 @@ export default function UserManagement() {
                     </label>
                     <input
                       type="text"
-                      value={newUser.name}
+                      value={userForm.name}
                       onChange={e =>
-                        setNewUser({ ...newUser, name: e.target.value })
+                        setUserForm({ ...userForm, name: e.target.value })
                       }
                       className={`w-full px-3 py-2 border ${
                         errors.name
@@ -337,9 +470,9 @@ export default function UserManagement() {
                     </label>
                     <input
                       type="email"
-                      value={newUser.email}
+                      value={userForm.email}
                       onChange={e =>
-                        setNewUser({ ...newUser, email: e.target.value })
+                        setUserForm({ ...userForm, email: e.target.value })
                       }
                       className={`w-full px-3 py-2 border ${
                         errors.email
@@ -361,16 +494,16 @@ export default function UserManagement() {
                     </label>
                     <input
                       type="password"
-                      value={newUser.password}
+                      value={userForm.password}
                       onChange={e =>
-                        setNewUser({ ...newUser, password: e.target.value })
+                        setUserForm({ ...userForm, password: e.target.value })
                       }
+                      placeholder={editingUser ? 'Leave blank to keep current password' : 'Enter new password'}
                       className={`w-full px-3 py-2 border ${
                         errors.password
                           ? "border-red-500"
                           : "border-gray-300 dark:border-gray-600"
                       } rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-                      placeholder="Enter new password"
                     />
                     {errors.password && (
                       <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -385,19 +518,19 @@ export default function UserManagement() {
                     </label>
                     <input
                       type="password"
-                      value={newUser.confirmPassword}
+                      value={userForm.confirmPassword}
                       onChange={e =>
-                        setNewUser({
-                          ...newUser,
+                        setUserForm({
+                          ...userForm,
                           confirmPassword: e.target.value,
                         })
                       }
+                      placeholder={editingUser ? 'Leave blank to keep current password' : 'Confirm new password'}
                       className={`w-full px-3 py-2 border ${
                         errors.confirmPassword
                           ? "border-red-500"
                           : "border-gray-300 dark:border-gray-600"
                       } rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-                      placeholder="Confirm new password"
                     />
                     {errors.confirmPassword && (
                       <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -411,9 +544,9 @@ export default function UserManagement() {
                       Role *
                     </label>
                     <select
-                      value={newUser.role}
+                      value={userForm.role}
                       onChange={e =>
-                        setNewUser({ ...newUser, role: e.target.value })
+                        setUserForm({ ...userForm, role: e.target.value })
                       }
                       className="w-full p-2 border rounded"
                     >
@@ -434,10 +567,10 @@ export default function UserManagement() {
                     </label>
                     <input
                       type="text"
-                      value={newUser.location}
+                      value={userForm.location}
                       onChange={(e) =>
-                        setNewUser({
-                          ...newUser,
+                        setUserForm({
+                          ...userForm,
                           location: e.target.value,
                         })
                       }
@@ -453,17 +586,17 @@ export default function UserManagement() {
                     <div className="flex items-center gap-3">
                       <input
                         type="color"
-                        value={newUser.color}
+                        value={userForm.color}
                         onChange={(e) =>
-                          setNewUser({ ...newUser, color: e.target.value })
+                          setUserForm({ ...userForm, color: e.target.value })
                         }
                         className="h-10 w-20 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
                       />
                       <input
                         type="text"
-                        value={newUser.color}
+                        value={userForm.color}
                         onChange={(e) =>
-                          setNewUser({ ...newUser, color: e.target.value })
+                          setUserForm({ ...userForm, color: e.target.value })
                         }
                         className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         placeholder="#3B82F6"
@@ -485,6 +618,16 @@ export default function UserManagement() {
                       setShowAddUserModal(false);
                       setApiError(null);
                       setErrors({});
+                      setEditingUser(null);
+                      setUserForm({
+                        name: "",
+                        email: "",
+                        password: "",
+                        confirmPassword: "",
+                        role: USER_ROLES.SUPER_ADMIN,
+                        location: "",
+                        color: "#3B82F6",
+                      });
                     }}
                     className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
@@ -495,8 +638,87 @@ export default function UserManagement() {
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white"
                     disabled={creatingUser}
                   >
-                    {creatingUser ? "Creating..." : "Create User"}
+                    {creatingUser 
+                      ? (editingUser ? 'Updating...' : 'Creating...') 
+                      : (editingUser ? 'Update User' : 'Create User')}
                   </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && userToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Confirm Deletion
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setUserToDelete(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 mb-6">
+                  Are you sure you want to delete user <strong>{userToDelete.name}</strong>? This action cannot be undone.
+                </p>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setUserToDelete(null);
+                    }}
+                    disabled={isDeleting}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        setIsDeleting(true);
+                        console.log('Deleting user:', userToDelete.id);
+                        
+                        const res = await fetch(`${API_BASE_URL}/api/users/${userToDelete.id}`, {
+                          method: 'DELETE',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                          },
+                          credentials: 'include', // Include cookies for authentication
+                        });
+
+                        const data = await res.json();
+                        console.log('Delete response:', { status: res.status, data });
+
+                        if (!res.ok) {
+                          throw new Error(data.message || `Failed to delete user (${res.status})`);
+                        }
+
+                        // Remove the user from the local state
+                        setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+                        setShowDeleteModal(false);
+                        setUserToDelete(null);
+                      } catch (err) {
+                        console.error('Delete user error:', err);
+                        setApiError(err.message || 'Failed to delete user');
+                      } finally {
+                        setIsDeleting(false);
+                      }
+                    }}
+                    disabled={isDeleting}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                  >
+                    {isDeleting ? 'Deleting...' : 'Delete User'}
+                  </button>
                 </div>
               </div>
             </div>

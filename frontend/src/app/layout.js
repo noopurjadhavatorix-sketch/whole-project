@@ -18,9 +18,15 @@ export default function RootLayout({ children }) {
     pingBackend();
   }, []);
 
+  // Helper component to suppress hydration warnings for dynamic content
+  const SafeHtml = ({ children }) => {
+    return <div suppressHydrationWarning={true}>{children}</div>;
+  };
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         {/* Google Analytics gtag.js */}
         <script
           async
@@ -153,15 +159,17 @@ export default function RootLayout({ children }) {
 
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
+          defaultTheme="light"
+          enableSystem
           disableTransitionOnChange
         >
-          <Navbar />
-          <main className="min-h-[calc(100vh-4rem)]">{children}</main>
-          <Footer />
-          <FloatingContactButtons />
-          <PopupContactForm />
+          <SafeHtml>
+            <Navbar />
+            <main>{children}</main>
+            <Footer />
+            <FloatingContactButtons />
+            <PopupContactForm />
+          </SafeHtml>
         </ThemeProvider>
       </body>
     </html>

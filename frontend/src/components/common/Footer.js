@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -15,26 +16,47 @@ import {
 import { useTheme } from "@/components/ui/theme-provider";
 
 export default function Footer() {
+  const [isMounted, setIsMounted] = useState(false);
   const { theme } = useTheme();
 
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Don't render on server to avoid hydration issues
+  if (!isMounted) {
+    return (
+      <footer className="py-16 border-t" suppressHydrationWarning>
+        <div className="container-custom" suppressHydrationWarning />
+      </footer>
+    );
+  }
+
   return (
-    <footer className="py-16 border-t">
-      <div className="container-custom">
+    <footer className="py-16 border-t" suppressHydrationWarning>
+      <div className="container-custom" suppressHydrationWarning>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-12">
           {/* Company Info */}
           <div className="lg:col-span-4">
-            <Link
-              href="/"
-              className="inline-block mb-6 logo-container relative"
-            >
-              <Image
-                src="/AtorixIT.png"
-                alt="Atorix IT Logo"
-                width={180}
-                height={50}
-                className={`object-contain ${theme === "dark" ? "bg-white rounded-lg" : "bg-transparent"}`}
-              />
-            </Link>
+            <div className="mb-6" suppressHydrationWarning>
+              <Link
+                href="/"
+                className="inline-block logo-container relative"
+                suppressHydrationWarning
+              >
+                <div suppressHydrationWarning>
+                  <Image
+                    src="/AtorixIT.png"
+                    alt="Atorix IT Logo"
+                    width={180}
+                    height={50}
+                    className={`object-contain ${theme === "dark" ? "bg-white rounded-lg p-1" : "bg-transparent"}`}
+                    priority
+                    suppressHydrationWarning
+                  />
+                </div>
+              </Link>
+            </div>
             <p className="text-muted-foreground mb-6">
               Atorix IT Solutions is the Best SAP S4 HANA Implementation Partner
               in India with its head office in Pune. We provide robust, business

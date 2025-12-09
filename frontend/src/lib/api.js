@@ -76,9 +76,9 @@ export async function apiRequest(endpoint, options = {}, retries = 2) {
       ...(options.headers || {})
     };
 
-    // Add auth token if available
+    // Add auth token if available (from sessionStorage)
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('authToken');
+      const token = sessionStorage.getItem('atorix_auth_token');
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }

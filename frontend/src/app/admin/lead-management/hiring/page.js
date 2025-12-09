@@ -144,48 +144,79 @@ export default function HiringManagement() {
     total: 0,
     totalPages: 1
   });
+  const [error, setError] = useState(null);
 
   // Fetch job applications
   const fetchApplications = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const url = `http://localhost:5001/api/job-applications?page=${pagination.page}&limit=${pagination.pageSize}&search=${searchTerm}`;
       console.log('Fetching from URL:', url);
       
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        credentials: 'include' // Important for cookies, CORS
-      });
+      let response;
+      try {
+        response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'include',
+          // Add timeout to prevent hanging requests
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+      } catch (fetchError) {
+        console.error('Network error:', fetchError);
+        throw new Error('Unable to connect to the server. Please check your connection and try again.');
+      }
+
+      // Handle non-2xx responses
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // If we can't parse JSON, use the status text
+          throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        }
+        throw new Error(errorData.message || `Error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
       
-      console.log('Response status:', response.status);
-      const data = await response.json().catch(e => {
-        console.error('Error parsing JSON:', e);
-        throw new Error('Invalid JSON response');
-      });
-      
-      console.log('Response data:', data);
-      
-      if (response.ok) {
-        setApplications(data.data || []);
+      if (data && Array.isArray(data.data)) {
+        setApplications(data.data);
         setPagination(prev => ({
           ...prev,
           total: data.total || 0,
           totalPages: Math.ceil((data.total || 0) / pagination.pageSize)
         }));
       } else {
-        console.error('Error response from server:', data);
-        throw new Error(data.message || 'Failed to fetch applications');
+        // Handle case where data is not in expected format
+        console.warn('Unexpected API response format:', data);
+        setApplications([]);
+        setPagination(prev => ({
+          ...prev,
+          total: 0,
+          totalPages: 1
+        }));
       }
     } catch (error) {
       console.error('Error in fetchApplications:', {
         message: error.message,
-        stack: error.stack,
-        name: error.name
+        name: error.name,
+        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
       });
-      // Set empty applications on error
+      
+      // Set user-friendly error message
+      const errorMessage = error.message.includes('Failed to fetch') || 
+                         error.message.includes('NetworkError') ||
+                         error.message.includes('AbortError')
+        ? 'Unable to connect to the server. Please check your internet connection and try again.'
+        : error.message || 'An unexpected error occurred while loading applications.';
+      
+      setError(errorMessage);
       setApplications([]);
     } finally {
       setLoading(false);
