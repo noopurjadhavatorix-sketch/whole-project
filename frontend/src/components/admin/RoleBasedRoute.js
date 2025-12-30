@@ -23,11 +23,12 @@ export default function RoleBasedRoute({
 }) {
   const [loading, setLoading] = useState(true);
   const [accessGranted, setAccessGranted] = useState(false);
+  const [apiError, setApiError] = useState(null);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const checkAuthAndAccess = () => {
+    const checkAuthAndAccess = async () => {
       // Skip auth check for public paths
       if (PUBLIC_PATHS.includes(pathname)) {
         setAccessGranted(true);
@@ -45,6 +46,7 @@ export default function RoleBasedRoute({
       
       // If user data is missing, redirect to login
       if (!user || !user.role) {
+        setApiError("User data not found. Please log in again.");
         router.push("/admin/login");
         return;
       }
@@ -74,8 +76,28 @@ export default function RoleBasedRoute({
       setLoading(false);
     };
 
-    checkAuthAndAccess();
+    checkAuthAndAccess().catch(error => {
+      console.error('Error in checkAuthAndAccess:', error);
+      setApiError(error.message || 'An error occurred while checking permissions');
+      setLoading(false);
+    });
   }, [router, allowedRoles, redirectPath, pathname]);
+
+  if (apiError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">{apiError}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

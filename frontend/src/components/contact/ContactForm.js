@@ -113,11 +113,10 @@ export default function ContactForm() {
         const demoResult = await submitDemoRequest(submissionData);
         if (!demoResult.success) {
           console.warn('Demo request submission warning:', demoResult.message);
-          // Continue even if demo request fails but web3forms succeeded
         }
       } catch (backendError) {
         console.error('Demo request submission failed:', backendError);
-        // Don't fail the whole submission if only backend fails but web3forms succeeded
+        // We don't fail the whole submission if only backend fails but web3forms succeeded
       }
 
       if (web3Result.success) {
@@ -142,42 +141,6 @@ export default function ContactForm() {
         console.error('Form submission failed:', web3Result);
       }
     } catch (error) {
-      setApiError("An unexpected error occurred. Please try again later.");
-      console.error("Form submission error:", error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-          "Backend submission failed, but email was sent via Web3Forms:",
-          backendError
-        );
-        // We don't fail the whole submission if only backend fails but web3forms succeeded
-      }
-
-      if (web3Result.success) {
-        setSubmitted(true);
-        // Reset form data
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          company: "",
-          message: "",
-        });
-
-        // Reset submitted state after 5 seconds
-        setTimeout(() => {
-          setSubmitted(false);
-        }, 5000);
-
-        // Scroll to top to show success message
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      } else {
-        // Handle API error
-        setApiError(web3Result.error);
-      }
-    } catch (error) {
-      // Handle unexpected error
       setApiError("An unexpected error occurred. Please try again later.");
       console.error("Form submission error:", error);
     } finally {

@@ -14,9 +14,10 @@ const nextConfig = {
       ? process.env.NEXT_PUBLIC_API_BASE_URL || 'https://your-production-api-url.com'
       : 'http://localhost:5001',
     // Keep backward compatibility
-    NEXT_PUBLIC_API_URL: process.env.NODE_ENV === 'production'
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 
+      (process.env.NODE_ENV === 'production'
       ? process.env.NEXT_PUBLIC_API_BASE_URL || 'https://your-production-api-url.com'
-      : 'http://localhost:5001',
+        : 'http://localhost:5001/api'), // From integrated file - includes /api suffix
   },
   webpack: (config, { isServer }) => {
     // Fixes npm packages that depend on `fs` module
@@ -76,6 +77,11 @@ const nextConfig = {
         hostname: "ugc.same-assets.com",
         pathname: "/**",
       },
+      // From integrated file - Allow all domains
+      {
+        protocol: 'https',
+        hostname: '**', // Allow all domains
+      },
     ],
   },
   typescript: {
@@ -86,7 +92,23 @@ const nextConfig = {
   },
   experimental: {
     // Adjust any experimental features as needed
+    serverActions: true, // From integrated file
+  },
+  // API proxy configuration (from integrated file)
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:5001/api/:path*',
+      },
+    ];
   },
 };
+
+// Set port for development (from integrated file)
+if (process.env.NODE_ENV === 'development') {
+  process.env.PORT = '3000';
+  process.env.HOST = '0.0.0.0';
+}
 
 module.exports = nextConfig;

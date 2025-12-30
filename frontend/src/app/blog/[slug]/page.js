@@ -3,13 +3,69 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Calendar, Clock, User, Tag, Share2, Facebook, Twitter, Linkedin } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, User, Tag, Share2, Facebook, Twitter, Linkedin, Mail, Phone, MapPin, ArrowRight, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import BlogContent from "@/components/ui/BlogContent";
+import TableOfContents from "@/components/blog/TableOfContents";
 
-// Blog posts data - imported from the blog page
-const blogPosts = [
+// Helper function to resolve image URLs
+const getApiOrigin = () => {
+  const raw = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').trim();
+  try {
+    const url = new URL(raw);
+    return `${url.protocol}//${url.host}`;
+  } catch (error) {
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return raw.replace(/\/+$/, '');
+    }
+    return `http://${raw}`.replace(/\/+$/, '');
+  }
+};
+
+const apiOrigin = getApiOrigin();
+
+const resolveImageUrl = (imageCandidate) => {
+  if (!imageCandidate) return null;
+
+  const normalize = (value) => {
+    if (!value) return null;
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    if (value.startsWith('data:')) return value; // Base64 images
+    if (value.startsWith('/')) return `${apiOrigin}${value}`;
+    return `${apiOrigin}/${value}`;
+  };
+
+  if (typeof imageCandidate === 'string') {
+    return normalize(imageCandidate);
+  }
+
+  if (typeof imageCandidate === 'object') {
+    return normalize(imageCandidate.url || imageCandidate.src || imageCandidate.path);
+  }
+
+  return null;
+};
+
+// Helper function to format date
+const formatDate = (dateString) => {
+  if (!dateString) return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+// Helper function to calculate read time
+const calculateReadTime = (content) => {
+  if (!content) return 1;
+  // Strip HTML and count words
+  const text = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const wordCount = text.split(' ').filter(word => word.length > 0).length;
+  return Math.ceil(wordCount / 200) || 1;
+};
+
+// Static blog posts data (fallback)
+const staticBlogPosts = [
   {
     id: "best-sap-implementation-partner-in-india",
     title: "BEST SAP IMPLEMENTATION PARTNER IN INDIA",
@@ -21,21 +77,19 @@ const blogPosts = [
     category: "SAP",
     readTime: "5 min read",
     content: `
-      <p>ATORIX IT SOLUTIONS - Best SAP Implementation Partner in India with its head office in Pune. We provide robust, business process solutions for successful clients.</p>
-
-      <p>Atorix IT Solutions is the Best SAP Implementation Partner in India with its head office in Pune. We provide robust, business process solutions for successful clients. From implementation to support, we ensure a seamless SAP experience tailored to your business needs.</p>
-
-      <h3>Why Choose Atorix as Your SAP Implementation Partner?</h3>
-
-      <ul>
-        <li>Expertise in SAP S/4HANA Implementation</li>
-        <li>Certified SAP Consultants</li>
-        <li>Industry-Specific Solutions</li>
-        <li>End-to-End Support</li>
-        <li>Proven Implementation Methodology</li>
-      </ul>
-
-      <p>Partner with us for successful SAP implementations that drive digital transformation and business growth.</p>
+      <div>
+        <p>ATORIX IT SOLUTIONS - Best SAP Implementation Partner in India with its head office in Pune. We provide robust, business process solutions for successful clients.</p>
+        <p>Atorix IT Solutions is the Best SAP Implementation Partner in India with its head office in Pune. We provide robust, business process solutions for successful clients. From implementation to support, we ensure a seamless SAP experience tailored to your business needs.</p>
+        <h3>Why Choose Atorix as Your SAP Implementation Partner?</h3>
+        <ul>
+          <li>Expertise in SAP S/4HANA Implementation</li>
+          <li>Certified SAP Consultants</li>
+          <li>Industry-Specific Solutions</li>
+          <li>End-to-End Support</li>
+          <li>Proven Implementation Methodology</li>
+        </ul>
+        <p>Partner with us for successful SAP implementations that drive digital transformation and business growth.</p>
+      </div>
     `
   },
   {
@@ -49,24 +103,22 @@ const blogPosts = [
     category: "SAP",
     readTime: "7 min read",
     content: `
-      <p>SAP Solution Manager (SolMan) is a module of SAP that provides functionalities like integrated content, methodologies, tools etc. To implement, operate, monitor and support an enterprise's SAP solution. SAP solution manager manages the SAP and Non-SAP solutions in the IT landscapes of an organization. It supports the underlying IT infrastructure and business processes.</p>
-
-      <h3>Key Functions of SAP Solution Manager</h3>
-
-      <p>SAP Solution Manager is central to your SAP landscape management, providing:</p>
-
-      <ul>
-        <li>Implementation and upgrade support</li>
-        <li>Business process operations</li>
-        <li>Application lifecycle management</li>
-        <li>Change control management</li>
-        <li>IT service management</li>
-        <li>Monitoring and alerting functions</li>
-        <li>Root cause analysis tools</li>
-        <li>Testing support</li>
-      </ul>
-
-      <p>For organizations running SAP systems, Solution Manager is an essential tool for maintaining optimal system performance and ensuring smooth operations of their SAP landscape.</p>
+      <div>
+        <p>SAP Solution Manager (SolMan) is a module of SAP that provides functionalities like integrated content, methodologies, tools etc. To implement, operate, monitor and support an enterprise's SAP solution. SAP solution manager manages the SAP and Non-SAP solutions in the IT landscapes of an organization. It supports the underlying IT infrastructure and business processes.</p>
+        <h3>Key Functions of SAP Solution Manager</h3>
+        <p>SAP Solution Manager is central to your SAP landscape management, providing:</p>
+        <ul>
+          <li>Implementation and upgrade support</li>
+          <li>Business process operations</li>
+          <li>Application lifecycle management</li>
+          <li>Change control management</li>
+          <li>IT service management</li>
+          <li>Monitoring and alerting functions</li>
+          <li>Root cause analysis tools</li>
+          <li>Testing support</li>
+        </ul>
+        <p>For organizations running SAP systems, Solution Manager is an essential tool for maintaining optimal system performance and ensuring smooth operations of their SAP landscape.</p>
+      </div>
     `
   },
   {
@@ -80,23 +132,20 @@ const blogPosts = [
     category: "SAP",
     readTime: "6 min read",
     content: `
-      <p>SAP is an idea that has revolutionised the recruitment scene in India. Even though it is an extraordinarily new idea in the Indian context, the fact is that ERP software program applications are increasing through the minute right here and in this kind of state of affairs the want for SAP-licensed specialists is growing throughout horizontals and verticals.</p>
-
-      <h3>Growing Demand for SAP Professionals</h3>
-
-      <p>The demand for SAP experts continues to grow as more businesses adopt enterprise resource planning solutions. This growth is evident across various industries, creating numerous career opportunities for SAP specialists.</p>
-
-      <h3>Future Trends in SAP</h3>
-
-      <ul>
-        <li>Increased adoption of SAP S/4HANA</li>
-        <li>Cloud-based SAP implementations</li>
-        <li>Integration with AI and machine learning</li>
-        <li>Enhanced mobile capabilities</li>
-        <li>IoT integration with SAP systems</li>
-      </ul>
-
-      <p>As businesses continue to digitally transform, the scope for SAP implementation and support services will continue to expand, making it a promising field for professionals and implementation partners alike.</p>
+      <div>
+        <p>SAP is an idea that has revolutionised the recruitment scene in India. Even though it is an extraordinarily new idea in the Indian context, the fact is that ERP software program applications are increasing through the minute right here and in this kind of state of affairs the want for SAP-licensed specialists is growing throughout horizontals and verticals.</p>
+        <h3>Growing Demand for SAP Professionals</h3>
+        <p>The demand for SAP experts continues to grow as more businesses adopt enterprise resource planning solutions. This growth is evident across various industries, creating numerous career opportunities for SAP specialists.</p>
+        <h3>Future Trends in SAP</h3>
+        <ul>
+          <li>Increased adoption of SAP S/4HANA</li>
+          <li>Cloud-based SAP implementations</li>
+          <li>Integration with AI and machine learning</li>
+          <li>Enhanced mobile capabilities</li>
+          <li>IoT integration with SAP systems</li>
+        </ul>
+        <p>As businesses continue to digitally transform, the scope for SAP implementation and support services will continue to expand, making it a promising field for professionals and implementation partners alike.</p>
+      </div>
     `
   },
   {
@@ -231,10 +280,10 @@ function AnimatedBlobBackground() {
   );
 }
 
-// Related posts component
+// Related posts component (fallback for static posts)
 function RelatedPosts({ currentPostId }) {
   // Get three related posts (excluding the current one)
-  const relatedPosts = blogPosts
+  const relatedPosts = staticBlogPosts
     .filter(post => post.id !== currentPostId)
     .slice(0, 3);
 
@@ -294,19 +343,344 @@ function RelatedPosts({ currentPostId }) {
 
 export default function BlogPostPage() {
   const params = useParams();
+  const router = useRouter();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [relatedPosts, setRelatedPosts] = useState([]);
+  const [allBlogPosts, setAllBlogPosts] = useState([]);
+  
+  // Contact form state
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    countryCode: 'IN',
+    phone: '',
+    location: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  
+  // Country codes list
+  const countryCodes = [
+    { code: 'IN', name: 'India', dialCode: '+91' },
+    { code: 'US', name: 'United States', dialCode: '+1' },
+    { code: 'UK', name: 'United Kingdom', dialCode: '+44' },
+    { code: 'CA', name: 'Canada', dialCode: '+1' },
+    { code: 'AU', name: 'Australia', dialCode: '+61' },
+  ];
+  
+  const selectedCountry = countryCodes.find(c => c.code === contactForm.countryCode) || countryCodes[0];
+  
+  // Handle contact form input changes
+  const handleContactInputChange = (field, value) => {
+    setContactForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
+  // Handle contact form submission
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Basic validation
+    if (!contactForm.name.trim()) {
+      alert('Please enter your name');
+      return;
+    }
+    if (!contactForm.email.trim() || !contactForm.email.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+    if (!contactForm.phone.trim()) {
+      alert('Please enter your phone number');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Here you would typically send the form data to your backend API
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/contact`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: contactForm.name,
+          email: contactForm.email,
+          phone: `${selectedCountry.dialCode} ${contactForm.phone}`,
+          location: contactForm.location,
+          source: 'blog_contact_form'
+        }),
+      });
+      
+      if (response.ok) {
+        alert('Thank you! We will contact you soon.');
+        // Reset form
+        setContactForm({
+          name: '',
+          email: '',
+          countryCode: 'IN',
+          phone: '',
+          location: ''
+        });
+      } else {
+        throw new Error('Failed to submit form');
+      }
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      // Even if API fails, show success message (for demo purposes)
+      alert('Thank you! We will contact you soon.');
+      setContactForm({
+        name: '',
+        email: '',
+        countryCode: 'IN',
+        phone: '',
+        location: ''
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
-    // Find the post with the matching slug
-    const currentPost = blogPosts.find(post => post.id === params.slug);
+    const fetchBlogPost = async () => {
+      setLoading(true);
+      
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const slug = params.slug;
+        let blog = null;
+        
+        // First, try to fetch directly by slug/ID
+        try {
+          const url = new URL(`/api/blog/posts/${slug}`, baseUrl);
+          const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
 
-    if (currentPost) {
-      setPost(currentPost);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data) {
+              blog = data.data;
+            }
+          }
+        } catch (directError) {
+          console.log('Direct fetch failed, trying alternative method:', directError);
+        }
+        
+        // If direct fetch failed, try fetching all posts and finding the matching one
+        if (!blog) {
+          try {
+            const allPostsUrl = new URL('/api/blog/posts', baseUrl);
+            allPostsUrl.searchParams.append('status', 'published');
+            allPostsUrl.searchParams.append('limit', '100');
+            
+            const allPostsResponse = await fetch(allPostsUrl.toString(), {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (allPostsResponse.ok) {
+              const allPostsData = await allPostsResponse.json();
+              if (allPostsData.success && allPostsData.data) {
+                // Try to find by slug, _id, or id
+                blog = allPostsData.data.find(p => 
+                  (p.slug && p.slug.toLowerCase() === slug.toLowerCase()) ||
+                  (p._id && p._id.toString() === slug) ||
+                  (p.id && p.id.toString() === slug)
+                );
+              }
+            }
+          } catch (allPostsError) {
+            console.error('Error fetching all posts:', allPostsError);
+          }
+        }
+        
+        // If found, map and set the post
+        if (blog) {
+          // Map backend data to frontend format
+          const mappedPost = {
+            id: blog.slug || blog._id || blog.id,
+            title: blog.title || '',
+            description: blog.excerpt || blog.seoDescription || '',
+            date: formatDate(blog.createdAt || blog.created || blog.date),
+            author: blog.authorName || blog.author || 'Atorix Team',
+            authorRole: 'SAP Expert',
+            image: resolveImageUrl(blog.bannerImage) || 
+                   resolveImageUrl(blog.featuredImage) || 
+                   resolveImageUrl(blog.image) || 
+                   '/images/bg/services-bg.webp',
+            category: blog.category || 'Uncategorized',
+            readTime: `${calculateReadTime(blog.content)} min read`,
+            content: blog.content || '',
+            tags: blog.tags || blog.keywords || [],
+            excerpt: blog.excerpt || blog.seoDescription || ''
+          };
+          
+          setPost(mappedPost);
+          
+          // Fetch related posts (same category, excluding current)
+          try {
+            const relatedUrl = new URL('/api/blog/posts', baseUrl);
+            relatedUrl.searchParams.append('status', 'published');
+            relatedUrl.searchParams.append('category', blog.category || '');
+            relatedUrl.searchParams.append('limit', '4');
+            
+            const relatedResponse = await fetch(relatedUrl.toString(), {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (relatedResponse.ok) {
+              const relatedData = await relatedResponse.json();
+              if (relatedData.success && relatedData.data) {
+                const related = relatedData.data
+                  .filter(p => {
+                    const pId = p.slug || p._id || p.id;
+                    const currentId = blog.slug || blog._id || blog.id;
+                    return pId.toString() !== currentId.toString();
+                  })
+                  .slice(0, 3)
+                  .map(p => ({
+                    id: p.slug || p._id || p.id,
+                    title: p.title || '',
+                    description: p.excerpt || p.seoDescription || '',
+                    date: formatDate(p.createdAt || p.created),
+                    author: p.authorName || p.author || 'Atorix Team',
+                    image: resolveImageUrl(p.bannerImage) || 
+                           resolveImageUrl(p.featuredImage) || 
+                           resolveImageUrl(p.image) || 
+                           '/images/web-dev.svg',
+                    category: p.category || 'Uncategorized',
+                    readTime: `${calculateReadTime(p.content)} min read`
+                  }));
+                setRelatedPosts(related);
+              }
+            }
+          } catch (relatedError) {
+            console.error('Error fetching related posts:', relatedError);
+          }
+        } else {
+          // If not found in API, try static data as fallback
+          const staticPost = staticBlogPosts.find(p => p.id === slug || p.id.toLowerCase() === slug.toLowerCase());
+          if (staticPost) {
+            setPost(staticPost);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching blog post:', error);
+        // Fallback to static data
+        const staticPost = staticBlogPosts.find(p => p.id === params.slug || p.id.toLowerCase() === params.slug.toLowerCase());
+        if (staticPost) {
+          setPost(staticPost);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (params.slug) {
+      fetchBlogPost();
     }
-
-    setLoading(false);
   }, [params.slug]);
+
+  // Fetch all blog posts for category counting
+  useEffect(() => {
+    const fetchAllBlogPosts = async () => {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        let allBlogs = [];
+        let currentPage = 1;
+        let hasMore = true;
+        const limit = 100;
+        
+        // Fetch all pages until we get all blogs
+        while (hasMore) {
+          const url = new URL('/api/blog/posts', baseUrl);
+          url.searchParams.append('status', 'published');
+          url.searchParams.append('page', currentPage.toString());
+          url.searchParams.append('limit', limit.toString());
+          
+          const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch blog posts');
+          }
+
+          const data = await response.json();
+          
+          if (data.success && data.data && data.data.length > 0) {
+            allBlogs = [...allBlogs, ...data.data];
+            
+            // Check if there are more pages
+            const totalPages = data.totalPages || Math.ceil((data.totalPosts || allBlogs.length) / limit);
+            hasMore = currentPage < totalPages && data.data.length === limit;
+            currentPage++;
+          } else {
+            hasMore = false;
+          }
+        }
+        
+        setAllBlogPosts(allBlogs);
+      } catch (error) {
+        console.error('Error fetching all blog posts for categories:', error);
+        // Fallback to static posts if API fails
+        setAllBlogPosts(staticBlogPosts);
+      }
+    };
+
+    fetchAllBlogPosts();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCountryDropdown && !event.target.closest('.country-dropdown-container')) {
+        setShowCountryDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCountryDropdown]);
+
+  // Function to calculate category count
+  const getCategoryCount = (categoryName) => {
+    // Use allBlogPosts if available, otherwise fallback to staticBlogPosts
+    const posts = allBlogPosts.length > 0 ? allBlogPosts : staticBlogPosts;
+    
+    // Normalize category names for comparison (case-insensitive)
+    const normalizedCategory = (categoryName || '').toLowerCase().trim();
+    
+    return posts.filter(post => {
+      const postCategory = (post.category || '').toLowerCase().trim();
+      // Handle variations like "S/4HANA" vs "S4HANA" by also checking without special chars
+      const postCategoryNormalized = postCategory.replace(/[\/\-_\s]/g, '');
+      const normalizedCategoryClean = normalizedCategory.replace(/[\/\-_\s]/g, '');
+      
+      // Match if exact match or if normalized versions match
+      return postCategory === normalizedCategory || 
+             (postCategoryNormalized && normalizedCategoryClean && 
+              postCategoryNormalized === normalizedCategoryClean);
+    }).length;
+  };
 
   if (loading) {
     return (
@@ -361,9 +735,39 @@ export default function BlogPostPage() {
               {post.category}
             </div>
 
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 max-w-4xl">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-3 max-w-4xl">
               {post.title}
             </h1>
+
+            {/* Visible slug / permalink */}
+            <div className="mb-5 text-xs md:text-sm text-muted-foreground flex flex-wrap items-center gap-2">
+              <span className="font-medium">Slug:</span>
+              <code className="px-2 py-1 rounded bg-muted text-foreground text-xs">
+                {post.slug || post.id}
+              </code>
+              <span className="font-medium ml-3">Route:</span>
+              <code className="px-2 py-1 rounded bg-muted text-foreground text-xs">
+                {`/blog/${post.slug || post.id}`}
+              </code>
+              {typeof window !== 'undefined' && (
+                <>
+                  <span className="hidden sm:inline">·</span>
+                  <button
+                    onClick={() => {
+                      const path = `/blog/${post.slug || post.id}`;
+                      const url = `${window.location.origin}${path}`;
+                      navigator.clipboard
+                        ?.writeText(url)
+                        .then(() => alert('Blog URL copied to clipboard.'))
+                        .catch(() => alert('Could not copy URL. Please copy it manually.'));
+                    }}
+                    className="text-blue-600 hover:underline text-xs font-medium"
+                  >
+                    Copy full URL
+                  </button>
+                </>
+              )}
+            </div>
 
             <div className="flex flex-wrap items-center gap-4 md:gap-6 text-sm text-muted-foreground mb-8">
               <div className="flex items-center gap-2">
@@ -390,37 +794,62 @@ export default function BlogPostPage() {
       {/* Main Content */}
       <section className="py-12 md:py-16">
         <div className="container-custom">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Table of Contents - Left Side */}
+            <div className="lg:col-span-3 order-2 lg:order-1">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+              >
+                <TableOfContents content={post.content} />
+              </motion.div>
+            </div>
+
             {/* Article Content */}
-            <div className="lg:col-span-8">
+            <div className="lg:col-span-6 order-1 lg:order-2">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
                 {/* Featured Image */}
-                <div className="aspect-[16/9] relative rounded-xl overflow-hidden mb-10 border border-border/40 shadow-md">
-                  <Image
-                    src="/images/bg/services-bg.webp"
-                    alt={post.title}
-                    fill
-                    className="object-cover"
-                    priority
-                  />
-                </div>
+                {post.image && (
+                  <div className="aspect-[16/9] relative rounded-xl overflow-hidden mb-10 border border-border/40 shadow-md">
+                    <Image
+                      src={post.image}
+                      alt={post.title}
+                      fill
+                      className="object-cover"
+                      priority
+                      unoptimized={post.image?.startsWith('http') || post.image?.startsWith('data:')}
+                      onError={(e) => {
+                        e.target.src = "/images/bg/services-bg.webp";
+                      }}
+                    />
+                  </div>
+                )}
 
                 {/* Content */}
-                <article className="prose prose-lg dark:prose-invert max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: post.content }} />
+                <article className="max-w-none">
+                  <BlogContent content={post.content} />
                 </article>
 
                 {/* Tags */}
-                <div className="flex flex-wrap gap-2 mt-10">
-                  <span className="bg-muted px-3 py-1 rounded-full text-sm">SAP</span>
-                  <span className="bg-muted px-3 py-1 rounded-full text-sm">S/4HANA</span>
-                  <span className="bg-muted px-3 py-1 rounded-full text-sm">Implementation</span>
-                  <span className="bg-muted px-3 py-1 rounded-full text-sm">Enterprise</span>
-                </div>
+                {post.tags && post.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-10">
+                    {post.tags.map((tag, index) => (
+                      <span key={index} className="bg-muted px-3 py-1 rounded-full text-sm">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {(!post.tags || post.tags.length === 0) && post.category && (
+                  <div className="flex flex-wrap gap-2 mt-10">
+                    <span className="bg-muted px-3 py-1 rounded-full text-sm">{post.category}</span>
+                  </div>
+                )}
 
                 {/* Social Share */}
                 <div className="flex items-center gap-4 mt-10 border-t border-border/60 pt-6">
@@ -450,7 +879,7 @@ export default function BlogPostPage() {
             </div>
 
             {/* Sidebar */}
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-3 order-3">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -474,73 +903,110 @@ export default function BlogPostPage() {
                   </p>
                 </div>
 
-                {/* Categories */}
-                <div className="bg-card rounded-xl p-6 border border-border/40 mb-8">
-                  <h3 className="text-lg font-semibold mb-4">Categories</h3>
-                  <ul className="space-y-2">
-                    <li>
-                      <Link
-                        href="/blog?category=sap"
-                        className="text-sm text-muted-foreground hover:text-primary flex items-center justify-between group"
-                      >
-                        <span>SAP</span>
-                        <span className="bg-muted px-2 py-0.5 rounded-full text-xs group-hover:bg-primary/20">
-                          {blogPosts.filter(p => p.category === "SAP").length}
-                        </span>
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        href="/blog?category=implementation"
-                        className="text-sm text-muted-foreground hover:text-primary flex items-center justify-between group"
-                      >
-                        <span>Implementation</span>
-                        <span className="bg-muted px-2 py-0.5 rounded-full text-xs group-hover:bg-primary/20">
-                          3
-                        </span>
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        href="/blog?category=migration"
-                        className="text-sm text-muted-foreground hover:text-primary flex items-center justify-between group"
-                      >
-                        <span>Migration</span>
-                        <span className="bg-muted px-2 py-0.5 rounded-full text-xs group-hover:bg-primary/20">
-                          2
-                        </span>
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        href="/blog?category=s4hana"
-                        className="text-sm text-muted-foreground hover:text-primary flex items-center justify-between group"
-                      >
-                        <span>S/4HANA</span>
-                        <span className="bg-muted px-2 py-0.5 rounded-full text-xs group-hover:bg-primary/20">
-                          2
-                        </span>
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        href="/blog?category=support"
-                        className="text-sm text-muted-foreground hover:text-primary flex items-center justify-between group"
-                      >
-                        <span>Support</span>
-                        <span className="bg-muted px-2 py-0.5 rounded-full text-xs group-hover:bg-primary/20">
-                          1
-                        </span>
-                      </Link>
-                    </li>
-                  </ul>
+                {/* Contact Us Form */}
+                <div className="bg-[#0a0e1a] rounded-xl p-6 mb-8 border border-[#1a2332]">
+                  <h3 className="text-2xl font-bold text-[#87ceeb] mb-6 text-center">Contact Us</h3>
+                  <form onSubmit={handleContactSubmit} className="space-y-4">
+                    {/* Name Field */}
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#87ceeb]" size={20} />
+                      <input
+                        type="text"
+                        placeholder="Your Name"
+                        value={contactForm.name}
+                        onChange={(e) => handleContactInputChange('name', e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-[#1a2332]/80 border border-[#2a3441] rounded-lg text-white placeholder-[#87ceeb]/60 focus:outline-none focus:ring-2 focus:ring-[#87ceeb] focus:border-[#87ceeb]"
+                        required
+                      />
+                    </div>
+                    
+                    {/* Email Field */}
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#87ceeb]" size={20} />
+                      <input
+                        type="email"
+                        placeholder="Email Address"
+                        value={contactForm.email}
+                        onChange={(e) => handleContactInputChange('email', e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-[#1a2332]/80 border border-[#2a3441] rounded-lg text-white placeholder-[#87ceeb]/60 focus:outline-none focus:ring-2 focus:ring-[#87ceeb] focus:border-[#87ceeb]"
+                        required
+                      />
+                    </div>
+                    
+                    {/* Phone Number Section */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Country Code Dropdown */}
+                      <div className="relative country-dropdown-container">
+                        <button
+                          type="button"
+                          onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                          className="w-full pl-3 pr-8 py-3 bg-[#1a2332]/80 border border-[#2a3441] rounded-lg text-white flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-[#87ceeb] focus:border-[#87ceeb]"
+                        >
+                          <span>{selectedCountry.code} {selectedCountry.dialCode}</span>
+                          <ChevronDown className="absolute right-3 text-[#87ceeb]" size={18} />
+                        </button>
+                        {showCountryDropdown && (
+                          <div className="absolute z-10 w-full mt-1 bg-[#1a2332] border border-[#2a3441] rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {countryCodes.map((country) => (
+                              <button
+                                key={country.code}
+                                type="button"
+                                onClick={() => {
+                                  handleContactInputChange('countryCode', country.code);
+                                  setShowCountryDropdown(false);
+                                }}
+                                className="w-full px-3 py-2 text-left text-white hover:bg-[#2a3441] flex items-center justify-between"
+                              >
+                                <span>{country.code} {country.dialCode}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Phone Number Input */}
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#87ceeb]" size={20} />
+                        <input
+                          type="tel"
+                          placeholder="Phone Number"
+                          value={contactForm.phone}
+                          onChange={(e) => handleContactInputChange('phone', e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 bg-[#1a2332]/80 border border-[#2a3441] rounded-lg text-white placeholder-[#87ceeb]/60 focus:outline-none focus:ring-2 focus:ring-[#87ceeb] focus:border-[#87ceeb]"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Location Field */}
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#87ceeb]" size={20} />
+                      <input
+                        type="text"
+                        placeholder="Your Location"
+                        value={contactForm.location}
+                        onChange={(e) => handleContactInputChange('location', e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-[#1a2332]/80 border border-[#2a3441] rounded-lg text-white placeholder-[#87ceeb]/60 focus:outline-none focus:ring-2 focus:ring-[#87ceeb] focus:border-[#87ceeb]"
+                      />
+                    </div>
+                    
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-[#1e3a8a] hover:bg-[#2563eb] text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Get Free Consultation
+                      <ArrowRight size={20} />
+                    </button>
+                  </form>
                 </div>
 
                 {/* Popular Posts */}
                 <div className="bg-card rounded-xl p-6 border border-border/40">
                   <h3 className="text-lg font-semibold mb-4">Popular Posts</h3>
                   <div className="space-y-4">
-                    {blogPosts.slice(0, 3).map((popularPost) => (
+                    {staticBlogPosts.slice(0, 3).map((popularPost) => (
                       <div key={`popular-${popularPost.id}`} className="flex gap-3">
                         <div className="flex-shrink-0 h-16 w-16 relative rounded-md overflow-hidden">
                           <Image
@@ -567,7 +1033,64 @@ export default function BlogPostPage() {
           </div>
 
           {/* Related Posts */}
-          <RelatedPosts currentPostId={post.id} />
+          {relatedPosts.length > 0 ? (
+            <div className="mt-16 border-t border-border/60 pt-12">
+              <h2 className="text-2xl font-bold mb-8">Related Articles</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {relatedPosts.map((relatedPost, index) => (
+                  <motion.div
+                    key={relatedPost.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="bg-card rounded-xl overflow-hidden border border-border/40 hover:border-primary/30 hover:shadow-md transition-all duration-300"
+                  >
+                    <Link href={`/blog/${relatedPost.id}`} className="block">
+                      <div className="aspect-[16/9] relative">
+                        <Image
+                          src={relatedPost.image}
+                          alt={relatedPost.title}
+                          fill
+                          className="object-cover hover:scale-105 transition-transform duration-500"
+                          unoptimized={relatedPost.image?.startsWith('http') || relatedPost.image?.startsWith('data:')}
+                          onError={(e) => {
+                            e.target.src = "/images/web-dev.svg";
+                          }}
+                        />
+                      </div>
+                    </Link>
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/20 px-2 py-1 text-xs font-medium text-blue-800 dark:text-blue-300">
+                          {relatedPost.category}
+                        </div>
+                        <span className="text-xs text-muted-foreground">{relatedPost.readTime}</span>
+                      </div>
+                      <h3 className="text-lg font-bold mb-2 line-clamp-2">
+                        <Link href={`/blog/${relatedPost.id}`} className="hover:text-primary transition-colors">
+                          {relatedPost.title}
+                        </Link>
+                      </h3>
+                      <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
+                        {relatedPost.description}
+                      </p>
+                      <div className="flex items-center justify-between pt-3 border-t border-border/60">
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-semibold">
+                            {relatedPost.author.charAt(0)}
+                          </div>
+                          <span className="text-xs">{relatedPost.author}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{relatedPost.date}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <RelatedPosts currentPostId={post.id} />
+          )}
         </div>
       </section>
 

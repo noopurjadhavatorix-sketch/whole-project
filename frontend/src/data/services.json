@@ -407,6 +407,220 @@
           "image": "/images/about/pt4.webp"
         }
       ]
+    },
+    {
+      "id": "information-technology",
+      "name": "Information Technology",
+      "description": "Comprehensive IT solutions to drive digital transformation and business growth.",
+      "icon": "/images/icons/it-services.svg",
+      "services": [
+        {
+          "id": "it-consulting",
+          "name": "IT Consulting",
+          "description": "Strategic IT consulting services to align technology with your business objectives and drive digital transformation. Our experts analyze your existing systems, identify opportunities for improvement, and design tailored IT strategies that enhance efficiency and innovation. We help you leverage emerging technologies, optimize processes, and implement scalable solutions that support long-term growth and competitive advantage.",
+          "image": "https://res.cloudinary.com/dwjqrzygn/image/upload/v1762495130/it-consulting_yereog.webp",
+          "details": "At Atorix IT Solutions, our IT consulting services are designed to help businesses navigate the complex technology landscape and leverage digital transformation for sustainable growth. Our team of certified experts provides end-to-end consulting services that bridge the gap between business objectives and technology implementation. We take a holistic approach to understand your unique challenges and deliver customized solutions that drive operational excellence and competitive advantage.",
+          "keyBenefits": [
+            {
+              "title": "Expert Technology Guidance",
+              "description": "Access to certified IT consultants with deep industry knowledge and technical expertise to guide your technology decisions."
+            },
+            {
+              "title": "Cost Optimization",
+              "description": "Identify cost-saving opportunities through technology rationalization, cloud adoption, and process automation."
+            },
+            {
+              "title": "Future-Proof Solutions",
+              "description": "We design IT strategies that not only address current challenges but also scale with your future business needs."
+            },
+            {
+              "title": "Risk Mitigation",
+              "description": "Proactive identification and management of IT-related risks to ensure business continuity and security."
+            },
+            {
+              "title": "Enhanced Efficiency",
+              "description": "Streamline operations and improve productivity through optimized IT infrastructure and processes."
+            }
+          ],
+          "features": [
+            "Comprehensive IT strategy development and roadmap planning",
+            "Digital transformation consulting and implementation",
+            "Technology assessment and digital maturity evaluation",
+            "IT infrastructure optimization and modernization",
+            "Cloud strategy development and migration services",
+            "Cybersecurity consulting and risk assessment",
+            "IT governance and compliance advisory",
+            "Enterprise architecture design and optimization",
+            "Vendor selection and management",
+            "IT service management and operations consulting"
+          ],
+          "additionalContent": {
+            "approach": "Our IT consulting methodology is built on a foundation of deep industry knowledge and technical expertise. We follow a structured approach that includes assessment, strategy development, implementation planning, and ongoing support to ensure measurable business outcomes.",
+            "whyChooseUs": [
+              "Proven track record of successful IT transformations across industries",
+              "Team of certified consultants with diverse technical expertise",
+              "Vendor-agnostic recommendations tailored to your needs",
+              "Focus on delivering tangible business value and ROI",
+              "End-to-end support from strategy to implementation"
+            ],
+            "caseStudy": "Our recent engagement with a leading manufacturing firm resulted in a 40% reduction in IT operational costs and a 3x improvement in system performance through our comprehensive IT infrastructure optimization strategy."
+          }
+        },
+        {
+          "id": "software-development",
+          "name": "Custom Software Development",
+          "description": "We deliver tailored software solutions that address your unique business needs and challenges. From design and development to deployment and support, our expert team builds scalable, secure, and user-friendly applications. Using modern technologies and agile practices, we ensure high performance, innovation, and seamless integration to drive your digital transformation.",
+          "details": "At Atorix IT Solutions, we specialize in developing bespoke software solutions that transform your business operations and drive digital innovation. Our custom software development services are designed to address your unique challenges, streamline processes, and deliver measurable business value. We follow industry best practices and agile methodologies to deliver robust, scalable, and future-ready applications that give you a competitive edge in today's digital landscape.",
+          "keyBenefits": [
+            {
+              "title": "Bespoke Solutions",
+              "description": "100% customized software designed specifically for your business needs and workflows."
+            },
+            {
+              "title": "End-to-End Development",
+              "description": "Complete software development lifecycle management from concept to deployment and beyond."
+            },
+            {
+              "title": "Cross-Platform Compatibility",
+              "description": "Seamless performance across all devices and platforms for maximum reach and accessibility."
+            },
+            {
+              "title": "Scalable Architecture",
+              "description": "Future-proof solutions that grow with your business needs and user base."
+            },
+            {
+              "title": "Rapid Development",
+              "description": "Agile methodologies for faster time-to-market without compromising quality."
+            }
+          ],
+          "features": [
+            "Custom web and mobile application development",
+            "Progressive Web Apps (PWAs) for enhanced user experience",
+            "Enterprise Resource Planning (ERP) systems",
+            "Customer Relationship Management (CRM) solutions",
+            "E-commerce platform development",
+            "Legacy system modernization and migration",
+            "API development and third-party integrations",
+            "Cloud-native application development",
+            "UI/UX design and optimization",
+            "Comprehensive quality assurance and testing"
+          ],
+          "image": "/images/about/pt2.webp",
+          "additionalContent": {
+            "ourApproach": "We follow a proven software development methodology that combines technical excellence with business acumen. Our process includes requirements analysis, system design, agile development, rigorous testing, and continuous deployment to ensure we deliver solutions that exceed your expectations.",
+            "technologies": {
+              "frontend": [
+                "React.js",
+                "Angular",
+                "Vue.js",
+                "Flutter",
+                "React Native"
+              ],
+              "backend": [
+                "Node.js",
+                "Python/Django",
+                "Java/Spring",
+                ".NET Core",
+                "PHP/Laravel"
+              ],
+              "databases": [
+                "PostgreSQL",
+                "MongoDB",
+                "MySQL",
+                "Microsoft SQL Server",
+                "Redis"
+              ],
+              "cloud": [
+                "AWS",
+                "Azure",
+                "Google Cloud",
+                "Docker",
+                "Kubernetes"
+              ]
+            },
+            "whyChooseUs": [
+              "Dedicated team of certified developers and architects",
+              "Transparent development process with regular updates",
+              "Focus on clean, maintainable, and well-documented code",
+              "Rigorous quality assurance at every development stage",
+              "Post-deployment support and maintenance"
+            ],
+            "caseStudy": "For a leading retail client, we developed a custom inventory management system that reduced stock discrepancies by 75% and improved order fulfillment time by 60%, resulting in significant cost savings and enhanced customer satisfaction."
+          }
+        },
+        {
+          "id": "cloud-services",
+          "name": "Cloud Services",
+          "description": "We provide comprehensive end-to-end cloud solutions, including seamless migration, proactive management, and continuous optimization of cloud infrastructure. Our services ensure enhanced performance, security, and scalability while reducing operational costs. From strategy and deployment to ongoing support, we help businesses leverage the full potential of cloud technology for sustainable growth and innovation.",
+          "details": "Our cloud services help businesses leverage the power of cloud computing to improve agility, scalability, and cost-efficiency. We provide comprehensive cloud strategy, migration, and management services across all major cloud platforms.",
+          "features": [
+            "Cloud strategy and consulting",
+            "Cloud migration services",
+            "Multi-cloud management",
+            "Cloud security and compliance",
+            "Cost optimization",
+            "24/7 cloud monitoring and support"
+          ],
+          "image": "/images/about/pt3.webp"
+        },
+        {
+          "id": "it-infrastructure-management",
+          "name": "IT Infrastructure Management",
+          "description": "We provide comprehensive IT infrastructure management services to ensure optimal performance, security, and availability of your critical systems. Our solutions include proactive monitoring, maintenance, and support for servers, networks, and cloud environments, helping minimize downtime, enhance reliability, and enable scalable, secure, and cost-efficient IT operations aligned with your business goals.",
+          "details": "At Atorix IT Solutions, our IT Infrastructure Management services provide end-to-end oversight and optimization of your entire IT ecosystem. We manage, monitor, and maintain your hardware, software, networks, and data centers to ensure they operate at peak efficiency while supporting your business objectives. Our proactive approach minimizes downtime, enhances security, and enables scalability as your business grows.",
+          "keyBenefits": [
+            {
+              "title": "Enhanced System Reliability",
+              "description": "24/7 monitoring and proactive maintenance ensure maximum uptime and optimal performance of your IT infrastructure."
+            },
+            {
+              "title": "Reduced Operational Costs",
+              "description": "Optimize resource allocation and minimize downtime to significantly reduce IT operational expenses and improve ROI."
+            },
+            {
+              "title": "Improved Security Posture",
+              "description": "Advanced security monitoring, vulnerability assessment, and threat detection protect your critical business assets round-the-clock."
+            },
+            {
+              "title": "Scalable Infrastructure",
+              "description": "Flexible infrastructure solutions that grow with your business needs without compromising performance or reliability."
+            },
+            {
+              "title": "Proactive Problem Resolution",
+              "description": "Real-time monitoring and predictive analytics identify and resolve issues before they impact your business operations."
+            }
+          ],
+          "features": [
+            "24/7 infrastructure monitoring and support",
+            "Server and database management",
+            "Network management and optimization",
+            "Storage and backup management",
+            "Cloud infrastructure management",
+            "Virtualization management (VMware, Hyper-V)",
+            "Performance tuning and optimization",
+            "Patch management and system updates",
+            "Disaster recovery and business continuity planning",
+            "Capacity planning and resource optimization",
+            "Infrastructure security management",
+            "Remote infrastructure management (RIM)",
+            "Service desk and incident management",
+            "IT asset lifecycle management"
+          ],
+          "image": "/images/about/pt4.webp",
+          "additionalContent": {
+            "approach": "Our IT infrastructure management methodology combines proactive monitoring, automated workflows, and expert support to ensure your infrastructure operates at peak efficiency. We follow ITIL best practices and leverage advanced tools for real-time visibility, enabling us to detect and resolve issues before they impact your business.",
+            "whyChooseUs": [
+              "Certified infrastructure management professionals",
+              "24/7 monitoring and support services",
+              "Proven track record in managing complex IT environments",
+              "Adherence to strict SLAs and service level agreements",
+              "Expertise across legacy and modern platforms",
+              "Cost-effective managed services model"
+            ],
+            "caseStudy": "We helped a mid-sized enterprise reduce infrastructure downtime by 85% and lower IT operational costs by 35% through our comprehensive infrastructure management services, including proactive monitoring, automated patch management, and optimized resource allocation."
+          }
+        }
+      ]
     }
   ]
 }

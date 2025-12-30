@@ -5,6 +5,12 @@
 // Get API configuration from environment variables
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5001';
 
+// Alternative API base URL configuration (from integrated file)
+// Uses NEXT_PUBLIC_API_URL with fallback to render.com for production
+const isDevelopment = process.env.NODE_ENV === 'development';
+export const API_BASE_URL_ALT = process.env.NEXT_PUBLIC_API_URL ||
+                                 (isDevelopment ? 'http://localhost:5001' : 'https://atorix-it.onrender.com');
+
 // API endpoints configuration
 export const API_ENDPOINTS = {
   // Authentication
@@ -294,6 +300,54 @@ export async function submitWeb3FormData(formData) {
 }
 
 /**
+ * Alternative implementation: Submit form data to Web3Forms using FormData
+ * (from integrated file - uses FormData instead of JSON)
+ * @param {Object} formData - The form data to submit
+ * @returns {Promise} - Response from the Web3Forms API
+ */
+export async function submitWeb3FormDataFormData(formData) {
+  try {
+    // Create a new FormData instance
+    const web3FormData = new FormData();
+
+    // Add the access key
+    web3FormData.append('access_key', WEB3FORMS_ACCESS_KEY);
+
+    // Add all form fields
+    Object.entries(formData).forEach(([key, value]) => {
+      web3FormData.append(key, value);
+    });
+
+    // Optionally set subject
+    if (!formData.subject) {
+      web3FormData.append('subject', `New Form Submission from ${formData.name || 'Website Visitor'}`);
+    }
+
+    // You can add a hidden honeypot field to prevent spam
+    web3FormData.append('botcheck', '');
+
+    const response = await fetch(WEB3FORMS_API_URL, {
+      method: 'POST',
+      body: web3FormData
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return { success: true, data };
+    } else {
+      throw new Error(data.message || 'Form submission failed');
+    }
+  } catch (error) {
+    console.error('Error submitting form to Web3Forms:', error);
+    return {
+      success: false,
+      error: error.message || 'An unexpected error occurred'
+    };
+  }
+}
+
+/**
  * Submit form data to the backend API with retry capability for cold starts
  * @param {Object} formData - The form data to submit
  * @param {Number} retries - Number of retry attempts (default: 2)
@@ -364,6 +418,83 @@ export async function submitFormData(formData, retries = 2, timeout = 8000) {
       // If the response is not ok, throw an error with the message from the API
       if (!response.ok) {
         throw new Error(data.message || `Server responded with status ${response.status}`);
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      // Store the last error
+      lastError = error;
+
+      // If it's an abort error (timeout) or we've reached max retries, break
+      if (error.name === 'AbortError') {
+        console.warn(`Request timed out after ${timeout}ms, attempt ${attempts} of ${retries + 1}`);
+      } else {
+        console.warn(`Error submitting form, attempt ${attempts} of ${retries + 1}:`, error);
+      }
+
+      // If we have retries left, wait before trying again (exponential backoff)
+      if (attempts <= retries) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempts - 1)));
+      } else {
+        // No more retries
+        break;
+      }
+    }
+  }
+
+  // If we've exhausted all retries, return the error
+  console.error('Error submitting form after all retries:', lastError);
+  return {
+    success: false,
+    error: (lastError && lastError.message) || 'An unexpected error occurred'
+  };
+}
+
+/**
+ * Alternative implementation: Submit form data to /api/submit endpoint
+ * (from integrated file - uses /api/submit instead of /api/business-leads)
+ * @param {Object} formData - The form data to submit
+ * @param {Number} retries - Number of retry attempts (default: 2)
+ * @param {Number} timeout - Timeout in milliseconds (default: 8000)
+ * @returns {Promise} - Response from the API
+ */
+export async function submitFormDataToContact(formData, retries = 2, timeout = 8000) {
+  // Start with retry count
+  let attempts = 0;
+  let lastError = null;
+
+  // Create AbortController for the timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  while (attempts <= retries) {
+    attempts++;
+
+    try {
+      // Clear any previous timeout just in case
+      clearTimeout(timeoutId);
+
+      // Set a new timeout for this attempt
+      const newTimeoutId = setTimeout(() => controller.abort(), timeout);
+
+      const response = await fetch(`${API_BASE_URL_ALT}/api/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+        signal: controller.signal
+      });
+
+      // Clear the timeout since we got a response
+      clearTimeout(newTimeoutId);
+
+      // Parse the JSON response
+      const data = await response.json();
+
+      // If the response is not ok, throw an error with the message from the API
+      if (!response.ok) {
+        throw new Error(data.message || 'An error occurred while submitting the form');
       }
 
       return { success: true, data };

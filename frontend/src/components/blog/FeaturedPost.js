@@ -49,10 +49,14 @@ export default function FeaturedPost({ post }) {
               className="aspect-[16/9] relative rounded-xl overflow-hidden border border-border/40 shadow-md"
             >
               <Image
-                src="/images/bg/services-bg.webp"
+                src={post.image || "/images/bg/services-bg.webp"}
                 alt={post.title}
                 fill
                 className="object-cover transition-transform duration-500"
+                unoptimized={post.image?.startsWith('http') || post.image?.startsWith('data:')}
+                onError={(e) => {
+                  e.target.src = "/images/bg/services-bg.webp";
+                }}
               />
             </motion.div>
           </div>

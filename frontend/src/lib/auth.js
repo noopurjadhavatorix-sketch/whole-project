@@ -4,6 +4,31 @@
 
 import { apiRequest, API_ENDPOINTS, getApiUrl } from './api';
 
+// Blog API URL configuration - Blog API runs on port 5000 (from integrated file)
+export const BLOG_API_BASE_URL = 'http://localhost:5000/api/blog';
+
+// Token and session keys (from integrated file)
+export const TOKEN_KEY = 'atorix_auth_token';
+export const SESSION_KEY = 'is_authenticated';
+
+// Log API base URL for debugging (from integrated file)
+if (typeof window !== 'undefined') {
+  console.log('🔌 Using Blog API Base URL:', BLOG_API_BASE_URL);
+}
+
+/**
+ * Debug function to log storage state (from integrated file)
+ * @param {string} operation - The operation being performed
+ */
+function logStorageState(operation) {
+  if (typeof window === 'undefined') return;
+  
+  console.group(`Auth Storage State (${operation})`);
+  console.log('localStorage token exists:', !!localStorage.getItem(TOKEN_KEY));
+  console.log('sessionStorage auth flag:', sessionStorage.getItem(SESSION_KEY));
+  console.groupEnd();
+}
+
 /**
  * Check if credentials are valid by calling the API
  * @param {string} username - The username to check
@@ -93,32 +118,37 @@ export function clearAuthToken() {
 
 /**
  * Check if user is authenticated
+ * Considers both main admin session (sessionStorage) and blog panel auth (localStorage/session flag)
  * @returns {boolean} - Whether the user is authenticated
  */
 export function isAuthenticated() {
   if (typeof window === 'undefined') return false;
   
-  const token = sessionStorage.getItem('atorix_auth_token');
-  if (!token) return false;
+  // Original admin auth (sessionStorage-based)
+  const adminToken = sessionStorage.getItem('atorix_auth_token');
 
-  // Optional: Add token expiration check here if needed
-  // const decoded = jwtDecode(token);
-  // if (decoded.exp * 1000 < Date.now()) {
-  //   clearAuthToken();
-  //   return false;
-  // }
+  // Blog auth (localStorage/session-based via getAuthToken)
+  const blogToken = getAuthToken();
 
-  return true;
+  return !!(adminToken || blogToken);
 }
 
 /**
  * Login user
  * @param {string} username - The username
  * @param {string} password - The password
+ * @param {boolean} isBlogLogin - When true, use the Blog API login instead of main admin API
  * @returns {Promise<{success: boolean, message?: string, token?: string, user?: object}>} - Result object with success and message
  */
-export async function login(username, password) {
+export async function login(username, password, isBlogLogin = false) {
   try {
+    if (isBlogLogin) {
+      // Use the dedicated Blog API login when logging into the blog panel
+      const result = await loginBlogAPI(username, password);
+      return result;
+    }
+
+    // Default behaviour: use main admin authentication
     const result = await validateCredentials(username, password);
 
     if (result.success && result.token) {
@@ -163,5 +193,199 @@ export async function logout() {
   } finally {
     // Clear all client-side storage
     clearAuthToken();
+  }
+}
+
+/**
+ * Get authentication token (from integrated file)
+ * @returns {string|null} The authentication token or null if not found
+ */
+export function getAuthToken() {
+  if (typeof window === 'undefined') {
+    console.log('getAuthToken: Not in browser environment');
+    return null;
+  }
+  logStorageState('getAuthToken');
+  
+  // Check if we have an active session
+  const hasActiveSession = sessionStorage.getItem(SESSION_KEY) === 'true';
+  if (!hasActiveSession) {
+    console.log('No active session found');
+    return null;
+  }
+  
+  try {
+    // Try localStorage first
+    const token = localStorage.getItem(TOKEN_KEY);
+    
+    // Fallback to sessionStorage if not found in localStorage
+    if (!token) {
+      console.warn('Token not found in localStorage, checking sessionStorage');
+      const sessionToken = sessionStorage.getItem(TOKEN_KEY);
+      if (sessionToken) {
+        console.log('Found token in sessionStorage');
+        return sessionToken;
+      }
+    }
+    
+    if (!token) {
+      console.log('No token found in any storage');
+      // Clear the session flag if no token is found
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+    
+    return token;
+  } catch (error) {
+    console.error('Error getting auth token:', error);
+    return null;
+  }
+}
+
+/**
+ * Get authorization header with token (from integrated file)
+ * @returns {Object} Authorization header object with Bearer token or empty object
+ */
+export function getAuthHeader() {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ============================================================================
+// Alternative implementations from integrated file (Blog API with localStorage)
+// ============================================================================
+
+/**
+ * Alternative implementation: Store authentication token in localStorage
+ * (from integrated file - uses localStorage instead of sessionStorage)
+ * @param {string} token - The JWT token
+ */
+export function setAuthTokenLocalStorage(token) {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    console.log('Setting auth token...');
+    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.setItem(SESSION_KEY, 'true');
+    console.log('Auth token set successfully');
+    logStorageState('after setAuthTokenLocalStorage');
+  } catch (error) {
+    console.error('Error saving auth token:', error);
+    // Fallback to sessionStorage if localStorage fails
+    try {
+      sessionStorage.setItem(TOKEN_KEY, token);
+      sessionStorage.setItem(SESSION_KEY, 'true');
+      console.warn('Fell back to sessionStorage for token storage');
+    } catch (e) {
+      console.error('Failed to store token in sessionStorage:', e);
+    }
+  }
+}
+
+/**
+ * Alternative implementation: Remove authentication token from storage
+ * (from integrated file - clears both localStorage and sessionStorage)
+ */
+export function clearAuthTokenLocalStorage() {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    console.log('Clearing auth token...');
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(TOKEN_KEY); // Clean up any sessionStorage tokens
+    console.log('Auth token cleared successfully');
+    logStorageState('after clearAuthTokenLocalStorage');
+  } catch (error) {
+    console.error('Error clearing auth token:', error);
+  }
+}
+
+/**
+ * Alternative implementation: Check if user is authenticated
+ * (from integrated file - uses getAuthToken with localStorage)
+ * @returns {boolean} - Whether the user is authenticated
+ */
+export function isAuthenticatedLocalStorage() {
+  const isAuth = !!getAuthToken();
+  console.log(`isAuthenticatedLocalStorage: ${isAuth}`);
+  return isAuth;
+}
+
+/**
+ * Alternative implementation: Login user with Blog API
+ * (from integrated file - uses Blog API endpoint)
+ * @param {string} username - The username
+ * @param {string} password - The password
+ * @returns {Promise<{success: boolean, message?: string, token?: string, user?: object}>} - Result object with success and message
+ */
+export async function loginBlogAPI(username, password) {
+  console.log('Login attempt for user:', username);
+  
+  try {
+    const response = await fetch(`${BLOG_API_BASE_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, password }),
+      credentials: 'include' // Important for cookies if using them
+    });
+    console.log('Login response status:', response.status);
+    
+    const data = await response.json().catch(e => {
+      console.error('Failed to parse login response:', e);
+      throw new Error('Invalid server response');
+    });
+    if (!response.ok) {
+      console.error('Login failed:', data.message || 'Unknown error');
+      throw new Error(data.message || 'Login failed');
+    }
+    if (data.token) {
+      console.log('Login successful, setting auth token');
+      setAuthTokenLocalStorage(data.token);
+      
+      // Store user data in localStorage
+      if (data.user) {
+        try {
+          localStorage.setItem('userData', JSON.stringify({
+            name: data.user.name || username,
+            role: data.user.role || 'user',
+            email: data.user.email || ''
+          }));
+        } catch (e) {
+          console.error('Failed to store user data:', e);
+        }
+      }
+      
+      return { 
+        success: true, 
+        token: data.token,
+        user: data.user || { 
+          username,
+          role: 'user' // Default role if not provided
+        }
+      };
+    }
+    console.error('No token in login response:', data);
+    throw new Error(data.message || 'Invalid response from server');
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    return { 
+      success: false, 
+      message: error.message || 'Failed to connect to the server' 
+    };
+  }
+}
+
+/**
+ * Alternative implementation: Logout user
+ * (from integrated file - redirects to login page)
+ */
+export function logoutBlogAPI() {
+  clearAuthTokenLocalStorage();
+  // Redirect to login page if in browser environment
+  if (typeof window !== 'undefined') {
+    window.location.href = '/admin/login';
   }
 }
